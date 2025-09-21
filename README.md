@@ -1,2 +1,2 @@
 # Fractal
-A Multiplatform
+A Multiplatform Compiler for the Statically Typed Object Oriented language Fractal
