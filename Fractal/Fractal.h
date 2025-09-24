@@ -4,5 +4,7 @@
 #pragma once
 
 #include <iostream>
+#include "Utilities.h"
+#include "Lexer/Lexer.h"
 
 // TODO: Reference additional headers your program requires here.
