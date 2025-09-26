@@ -6,5 +6,6 @@
 #include <iostream>
 #include "Utilities.h"
 #include "Lexer/Lexer.h"
+#include "Parser/Parser.h"
 
 // TODO: Reference additional headers your program requires here.

@@ -1,3 +1,6 @@
+// Position.h
+// Contains the Position Class definition, which is used for tracking relative positions of tokens in source files, useful for clear error outputs
+// Copyright (c) 2025-present, Stylianos Kementzetzidis
 #pragma once
 
 namespace Fractal {

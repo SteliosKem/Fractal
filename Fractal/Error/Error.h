@@ -1,3 +1,7 @@
+// Error.h
+// Contains the Error and ErrorHandler Class definitions which are used throughout the project for reporting and outputting errors
+// Copyright (c) 2025-present, Stylianos Kementzetzidis
+
 #pragma once
 #include "Common.h"
 #include "Position.h"

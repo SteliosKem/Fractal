@@ -105,6 +105,8 @@ namespace Fractal {
 			TYPE_F32,
 			TYPE_F64,
 			TYPE_BOOL,
+			TYPE_INTEGER,
+			TYPE_FLOAT,
 		// --
 
 		// -- Special --

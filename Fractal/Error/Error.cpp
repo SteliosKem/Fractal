@@ -1,3 +1,7 @@
+// Error.cpp
+// Contains the Error related method implementations
+// Copyright (c) 2025-present, Stylianos Kementzetzidis
+
 #include "Error.h"
 #include <iostream>
 #include "Utilities.h"
@@ -73,8 +77,8 @@ namespace Fractal {
 		// Will use this to compute the new starting index, after leading whitespace is removed
 		uint32_t startingIndexOffset = trimLeadingWhitespace(line);
 		std::cout << line.substr(0, startIndex - startingIndexOffset) << color(Color::Red) 
-			<< line.substr(startIndex - startingIndexOffset, endIndex - startingIndexOffset) 
-			<< color(Color::Default) << line.substr(endIndex + 1 - startingIndexOffset) << '\n';
+			<< line.substr(startIndex - startingIndexOffset, (endIndex - startingIndexOffset) - (startIndex - startingIndexOffset) + 1)
+			<< color(Color::Default) << line.substr(endIndex - startingIndexOffset + 1) << '\n';
 
 		for (size_t i = 0; i < paddingString.size(); i++)
 			std::cout << " ";
@@ -86,7 +90,7 @@ namespace Fractal {
 				std::cout << " ";
 		}
 		std::cout << color(Color::Red) << "^";
-		for (size_t i = 0; i < endIndex - startIndex; i++)
+		for (int32_t i = 0; i < int32_t(endIndex) - int32_t(startIndex + 1); i++)
 			std::cout << "~";
 		std::cout << color(Color::Default) << "\n";
 	}

@@ -49,7 +49,7 @@ namespace Fractal {
 		}
 	}
 
-	char Lexer::peek(uint32_t depth) {
+	char Lexer::peek(uint32_t depth) const {
 		// If current index + depth does not exceed the length of the source file then return the character
 		// of the source string at the desired index, else set return a null character
 		if (m_currentSourceIndex + depth < m_sourceCode.size())
@@ -66,7 +66,7 @@ namespace Fractal {
 		return false;
 	}
 
-	char Lexer::currentCharacter() {
+	char Lexer::currentCharacter() const {
 		// Accessing current character through a function in case other functionality is needed here
 		return m_currentCharacter;
 	}
@@ -111,7 +111,10 @@ namespace Fractal {
 							advance(2);
 							break;
 						}
-						advance();
+						if(currentCharacter() == '\n')
+							handleNewline();
+						else
+							advance();
 					}
 					continue;
 				}
@@ -144,35 +147,34 @@ namespace Fractal {
 
 		switch (currentCharacter())
 		{
-		SINGLE_CHARACTER('(', LEFT_PARENTHESIS);
-		SINGLE_CHARACTER(')', RIGHT_PARENTHESIS);
-		SINGLE_CHARACTER('{', LEFT_BRACE);
-		SINGLE_CHARACTER('}', RIGHT_BRACE);
-		SINGLE_CHARACTER('[', LEFT_BRACKET);
-		SINGLE_CHARACTER(']', RIGHT_BRACKET);
-		SINGLE_CHARACTER(';', SEMICOLON);
-		SINGLE_CHARACTER(',', COMMA);
-		SINGLE_CHARACTER('.', DOT);
-		SINGLE_CHARACTER('^', CAP);
-		SINGLE_CHARACTER('&', AMPERSAND);
-		SINGLE_CHARACTER('~', TILDE);
-		SINGLE_CHARACTER('%', PERCENT);
-		SINGLE_CHARACTER(':', COLON);
-		// Check for double character tokens
-		DOUBLE_OR_SINGLE('+', PLUS, '=', "+=", PLUS_EQUAL);
-		DOUBLE_OR_SINGLE('*', STAR, '=', "*=", STAR_EQUAL);
-		DOUBLE_OR_SINGLE('/', SLASH, '=', "/=", SLASH_EQUAL);
-		DOUBLE_OR_SINGLE('!', BANG, '=', "!=", BANG_EQUAL);
-		DOUBLE_OR_SINGLE('=', EQUAL, '=', "==", EQUAL_EQUAL);
-		DOUBLE_OR_SINGLE('<', LESS, '=', "<=", LESS_EQUAL);
-		DOUBLE_OR_SINGLE('>', GREATER, '=', ">=", GREATER_EQUAL);
-		//case '+':	to_return = match('=') ? Token{ PLUS_EQUAL, "+=", nextPosition } : Token{ PLUS, "+", position }; advance(); return to_return;
-		case '-':	/* Match Arrow */ if (match('>')) { advance(); return Token{ ARROW, "->", nextPosition }; }
-				to_return = match('=') ? Token{ MINUS_EQUAL, "-=", nextPosition } : Token{ MINUS, "-", position }; advance(); return to_return;
-		case '"':	return makeStringToken();
-		case '\0':	return Token{ SPECIAL_EOF, "EOF", position };
-		default:
-			break;
+			SINGLE_CHARACTER('(', LEFT_PARENTHESIS);
+			SINGLE_CHARACTER(')', RIGHT_PARENTHESIS);
+			SINGLE_CHARACTER('{', LEFT_BRACE);
+			SINGLE_CHARACTER('}', RIGHT_BRACE);
+			SINGLE_CHARACTER('[', LEFT_BRACKET);
+			SINGLE_CHARACTER(']', RIGHT_BRACKET);
+			SINGLE_CHARACTER(';', SEMICOLON);
+			SINGLE_CHARACTER(',', COMMA);
+			SINGLE_CHARACTER('.', DOT);
+			SINGLE_CHARACTER('^', CAP);
+			SINGLE_CHARACTER('&', AMPERSAND);
+			SINGLE_CHARACTER('~', TILDE);
+			SINGLE_CHARACTER('%', PERCENT);
+			SINGLE_CHARACTER(':', COLON);
+			// Check for double character tokens
+			DOUBLE_OR_SINGLE('+', PLUS, '=', "+=", PLUS_EQUAL);
+			DOUBLE_OR_SINGLE('*', STAR, '=', "*=", STAR_EQUAL);
+			DOUBLE_OR_SINGLE('/', SLASH, '=', "/=", SLASH_EQUAL);
+			DOUBLE_OR_SINGLE('!', BANG, '=', "!=", BANG_EQUAL);
+			DOUBLE_OR_SINGLE('=', EQUAL, '=', "==", EQUAL_EQUAL);
+			DOUBLE_OR_SINGLE('<', LESS, '=', "<=", LESS_EQUAL);
+			DOUBLE_OR_SINGLE('>', GREATER, '=', ">=", GREATER_EQUAL);
+			case '-':	/* Match Arrow */ if (match('>')) { advance(); return Token{ ARROW, "->", nextPosition }; }
+					to_return = match('=') ? Token{ MINUS_EQUAL, "-=", nextPosition } : Token{ MINUS, "-", position }; advance(); return to_return;
+			case '"':	return makeStringToken();
+			case '\0':	return Token{ SPECIAL_EOF, "EOF", position };
+			default:
+				break;
 		}
 
 		// If this part of the code is reached, then the current character does not match any known one, so an adequate error is reported.
@@ -210,7 +212,7 @@ namespace Fractal {
 
 		position.endIndex = m_currentSourceIndex - 1;
 
-		return isFloatingPoint ? Token{ TYPE_F32, numberValue, position } : Token{ TYPE_I32, numberValue, position };
+		return isFloatingPoint ? Token{ TYPE_FLOAT, numberValue, position } : Token{ TYPE_INTEGER, numberValue, position };
 	}
 
 	Token Lexer::makeNameToken() {
