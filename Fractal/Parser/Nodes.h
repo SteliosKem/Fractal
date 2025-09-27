@@ -15,7 +15,18 @@ namespace Fractal {
 		UnaryOperation,
 
 		Statement,
+		NullStatement,
+		CompoundStatement,
 		ExpressionStatement,
+		ReturnStatement,
+		IfStatement,
+		LoopStatement,
+		WhileStatement,
+		BreakStatement,
+		ContinueStatement,
+
+		Definition,
+		FunctionDefinition
 	};
 
 #define TYPE(x) NodeType getType() const { return x; }
@@ -31,12 +42,23 @@ namespace Fractal {
 	class Statement {
 	public:
 		virtual ~Statement() = default;
-		virtual void print() const {}
+		virtual void print(uint8_t indent = 0) const {}
 		TYPE(NodeType::Statement)
+	};
+
+	class Definition {
+	public:
+		virtual ~Definition() = default;
+		virtual void print() const {}
+		TYPE(NodeType::Definition)
 	};
 
 	using ExpressionPtr = std::unique_ptr<Expression>;
 	using StatementPtr = std::unique_ptr<Statement>;
+	using DefinitionPtr = std::unique_ptr<Definition>;
+
+	using StatementList = std::vector<std::unique_ptr<Statement>>;
+	using DefinitionList = std::vector<std::unique_ptr<Definition>>;
 
 	//
 	// Expressions
@@ -92,10 +114,102 @@ namespace Fractal {
 	// Statements
 	//
 
+	class NullStatement : public Statement {
+	public:
+		void print(uint8_t indent = 0) const override {
+			std::cout << "->\n";
+		}
+		TYPE(NodeType::NullStatement)
+	};
+
+	class CompoundStatement : public Statement {
+	public:
+		CompoundStatement(StatementList& statementList) : statements{ std::move(statementList) } {}
+		void print(uint8_t indent = 0) const override {
+			std::cout << "{\n";
+			for (size_t i = 0; i < statements.size(); i++)
+				statements[i]->print();
+			std::cout << "}\n";
+		}
+		TYPE(NodeType::CompoundStatement)
+	public:
+		StatementList statements;
+	};
+
+	class IfStatement : public Statement {
+	public:
+		IfStatement(ExpressionPtr condition, StatementPtr ifBody, StatementPtr elseBody)
+			: condition{ std::move(condition) }, ifBody{ std::move(ifBody) }, elseBody{ std::move(elseBody) } {}
+		void print(uint8_t indent = 0) const override {
+			std::cout << "->  If ";
+			condition->print();
+			std::cout << " then ";
+			ifBody->print();
+			if (elseBody) {
+				std::cout << "    else ";
+				elseBody->print();
+			}
+		}
+		TYPE(NodeType::IfStatement)
+	public:
+		ExpressionPtr condition;
+		StatementPtr ifBody;
+		StatementPtr elseBody;
+	};
+
+	class LoopStatement : public Statement {
+	public:
+		LoopStatement(StatementPtr loopBody) : loopBody{ std::move(loopBody) } {}
+		void print(uint8_t indent = 0) const override {
+			std::cout << "->  Loop ";
+			loopBody->print();
+		}
+		TYPE(NodeType::LoopStatement)
+	public:
+		StatementPtr loopBody;
+	};
+
+	class WhileStatement : public Statement {
+	public:
+		WhileStatement(ExpressionPtr condition, StatementPtr loopBody) : condition{ std::move(condition) }, loopBody{ std::move(loopBody) } {}
+		void print(uint8_t indent = 0) const override {
+			std::cout << "->  While ";
+			condition->print();
+			std::cout << " do ";
+			loopBody->print();
+		}
+		TYPE(NodeType::WhileStatement)
+	public:
+		ExpressionPtr condition;
+		StatementPtr loopBody;
+	};
+
+	class BreakStatement : public Statement {
+	public:
+		BreakStatement(const Token& token) : token{ token } {}
+		void print(uint8_t indent = 0) const override {
+			std::cout << "->  Break\n";
+		}
+		TYPE(NodeType::BreakStatement)
+	public:
+		Token token;
+	};
+
+	class ContinueStatement : public Statement {
+	public:
+		ContinueStatement(const Token& token) : token{ token } {}
+		void print(uint8_t indent = 0) const override {
+			std::cout << "->  Continue\n";
+		}
+		TYPE(NodeType::ContinueStatement)
+	public:
+		Token token;
+	};
+
 	class ExpressionStatement : public Statement {
 	public:
 		ExpressionStatement(ExpressionPtr expression) : expression{ std::move(expression) } {}
-		void print() const override {
+		void print(uint8_t indent = 0) const override {
 			std::cout << "->  ";
 			expression->print();
 			std::cout << '\n';
@@ -105,5 +219,38 @@ namespace Fractal {
 		ExpressionPtr expression;
 	};
 
-	using StatementList = std::vector<std::unique_ptr<Statement>>;
+	class ReturnStatement : public Statement {
+	public:
+		ReturnStatement(ExpressionPtr expression, const Token& token) : expression{ std::move(expression) }, token{ token } {}
+		void print(uint8_t indent = 0) const override {
+			std::cout << "->  return ";
+			expression->print();
+			std::cout << '\n';
+		}
+		TYPE(NodeType::ReturnStatement)
+	public:
+		ExpressionPtr expression;
+		Token token;
+	};
+
+	//
+	// DEFINITIONS
+	//
+
+	class FunctionDefinition : public Definition {
+	public:
+		FunctionDefinition(const std::string& functionName, Type returnType, StatementPtr functionBody)
+			: functionBody{ std::move(functionBody) }, returnType{ returnType }, functionName { functionName } {}
+		void print() const override {
+			std::cout << "=>  function '" << functionName << "':\n";
+			functionBody->print();
+			std::cout << "!=> \n";
+		}
+		TYPE(NodeType::ReturnStatement)
+	public:
+		std::string functionName;
+		Type returnType;
+		StatementPtr functionBody;
+	};
+
 }

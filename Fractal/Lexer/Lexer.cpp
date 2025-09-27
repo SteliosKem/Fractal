@@ -257,8 +257,6 @@ namespace Fractal {
 		while (currentCharacter() != '\0' && !m_errorHandler->hasErrors())
 			m_tokens.push_back(lex());
 
-		//m_tokens.push_back(Token{ SPECIAL_EOF, "EOF", m_currentPosition });
-
 		return !m_errorHandler->hasErrors();
 	}
 }

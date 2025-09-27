@@ -3,23 +3,40 @@
 // Copyright (c) 2025-present, Stylianos Kementzetzidis
 
 #include "Parser.h"
+#include "Lexer/Type.h"
 
 namespace Fractal {
 	uint8_t tokenBindingPower(const Token& token) {
 		switch (token.type) {
-		case STAR:
-		case SLASH:
-			return 20;
-		case PLUS:
-		case MINUS:
-			return 10;
-		default:
-			return 0;
+			case STAR:
+			case SLASH:
+				return 80;
+			case PLUS:
+			case MINUS:
+				return 70;
+			case GREATER:
+			case LESS:
+			case GREATER_EQUAL:
+			case LESS_EQUAL:
+				return 60;
+			case EQUAL_EQUAL:
+			case BANG_EQUAL:
+				return 50;
+			case AND:
+				return 40;
+			case OR:
+				return 30;
+			default:
+				return 0;
 		}
 	}
 
 	const StatementList& Parser::statements() const {
 		return m_statements;
+	}
+
+	const DefinitionList& Parser::definitions() const {
+		return m_definitions;
 	}
 
 	void Parser::advance() {
@@ -33,6 +50,10 @@ namespace Fractal {
 			advance();
 		else
 			m_errorHandler->reportError({ errorMessage, currentToken().position });
+	}
+
+	bool Parser::match(TokenType type) {
+		return currentToken().type == type;
 	}
 
 	const Token& Parser::currentToken() const {
@@ -86,6 +107,12 @@ namespace Fractal {
 			case PLUS:
 			case MINUS:
 			case STAR: 
+			case GREATER:
+			case LESS:
+			case EQUAL_EQUAL:
+			case BANG_EQUAL:
+			case GREATER_EQUAL:
+			case LESS_EQUAL:
 			case SLASH: {
 				BindingPower bindingPower = tokenBindingPower(token);
 				ExpressionPtr right = parseExpression(bindingPower);
@@ -97,10 +124,41 @@ namespace Fractal {
 	}
 
 #define CONSUME_SEMICOLON() consume(SEMICOLON, "Expected ';'")
+#define CONSUME_ARROW() consume(ARROW, "Expected '->'")
 
-	std::unique_ptr<Statement> Parser::parseStatement() {
-		// Expression Statements for now
+	StatementPtr Parser::parseStatement() {
+		switch (currentToken().type) {
+			case SEMICOLON:
+				return statementNull();
+			case LEFT_BRACE:
+				return statementCompound();
+			case RETURN:
+				return statementReturn();
+			case IF:
+				return statementIf();
+			case LOOP:
+				return statementLoop();
+			case WHILE:
+				return statementWhile();
+			case BREAK:
+				return statementBreak();
+			case CONTINUE:
+				return statementContinue();
+		}
 		return statementExpression();
+	}
+
+	StatementPtr Parser::statementNull() {
+		advance();
+		return std::make_unique<NullStatement>();
+	}
+
+	StatementPtr Parser::statementReturn() {
+		Token* token = m_currentToken;
+		advance();
+		StatementPtr statement = std::make_unique<ReturnStatement>(parseExpression(), *token);
+		CONSUME_SEMICOLON();
+		return statement;
 	}
 
 	StatementPtr Parser::statementExpression() {
@@ -109,14 +167,130 @@ namespace Fractal {
 		return statement;
 	}
 
+	StatementPtr Parser::statementCompound() {
+		// Skip '{'
+		advance();
+
+		StatementList statements;
+
+		while (!match(RIGHT_BRACE) && !match(SPECIAL_EOF))
+			statements.push_back(parseStatement());
+
+		consume(RIGHT_BRACE, "Expected '}'");
+		return std::make_unique<CompoundStatement>(statements);
+	}
+
+	StatementPtr Parser::statementIf() {
+		advance();
+		ExpressionPtr condition = parseExpression();
+		CONSUME_ARROW();
+		StatementPtr ifBody = parseStatement();
+		StatementPtr elseBody = nullptr;
+		if (match(ELSE)) {
+			advance();
+			elseBody = parseStatement();
+		}
+		return std::make_unique<IfStatement>(std::move(condition), std::move(ifBody), std::move(elseBody));
+	}
+
+	StatementPtr Parser::statementLoop() {
+		advance();
+		StatementPtr loopBody = parseStatement();
+		return std::make_unique<LoopStatement>(std::move(loopBody));
+	}
+
+	StatementPtr Parser::statementWhile() {
+		advance();
+		ExpressionPtr condition = parseExpression();
+		CONSUME_ARROW();
+		StatementPtr loopBody = parseStatement();
+		return std::make_unique<WhileStatement>(std::move(condition), std::move(loopBody));
+	}
+
+	StatementPtr Parser::statementBreak() {
+		Token* token = m_currentToken;
+		advance();
+		CONSUME_SEMICOLON();
+		return std::make_unique<BreakStatement>(*token);
+	}
+
+	StatementPtr Parser::statementContinue() {
+		Token* token = m_currentToken;
+		advance();
+		CONSUME_SEMICOLON();
+		return std::make_unique<ContinueStatement>(*token);
+	}
+
+	// -- DEFINITIONS --
+
+	void Parser::handleDefinitions() {
+		// Skip '[define]'
+		advance();
+		advance();
+		advance();
+
+		DefinitionPtr ptr;
+		while ((ptr = parseDefinition()) != nullptr)
+			m_definitions.push_back(std::move(ptr));
+
+		if (!(currentToken().type == LEFT_BRACKET && peek().type == BANG && peek(2).value == "define" && peek(3).value == "]"))
+			m_errorHandler->reportError({ "Expected end of definition set '[!define]'", currentToken().position });
+		else {
+			advance();
+			advance();
+			advance();
+			advance();
+		}
+	}
+
+	DefinitionPtr Parser::parseDefinition() {
+		switch (currentToken().type)
+		{
+		case FUNCTION:
+			return definitionFunction();
+		case LET:
+		default:
+			return nullptr;
+		}
+	}
+
+	DefinitionPtr Parser::definitionFunction() {
+		// Skip 'fn'
+		advance();
+
+		Type returnType = Type::Null;
+
+		Token* nameToken = m_currentToken;
+		consume(IDENTIFIER, "Expected a function name after 'fn'");
+
+		if (match(LEFT_PARENTHESIS)) {
+			advance();
+			consume(RIGHT_PARENTHESIS, "Expected ')' after function arguments");
+		}
+		
+		if (match(COLON)) {
+			advance();
+			Token* typeToken = m_currentToken;
+			if (!isTypeToken(currentToken()))
+				m_errorHandler->reportError({ "Expected a type after ':' in function definition", typeToken->position});
+			advance();
+		}
+
+		return std::make_unique<FunctionDefinition>(nameToken->value, returnType, parseStatement());
+	}
+
 	bool Parser::parse(const TokenList& tokens) {
 		// Reset Values
 		m_currentIndex = -1;
 		m_tokenList = tokens;
 		advance();
-
-		m_statements.push_back(parseStatement());
+		while (currentToken().type != SPECIAL_EOF && !m_errorHandler->hasErrors()) {
+			if (currentToken().type == LEFT_BRACKET && peek().value == "define" && peek(2).type == RIGHT_BRACKET) {
+				handleDefinitions();
+				continue;
+			}
+			m_statements.push_back(parseStatement());
+		}
 		return !m_errorHandler->hasErrors();
-		return true;
 	}
 }

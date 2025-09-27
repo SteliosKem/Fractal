@@ -6,6 +6,7 @@
 
 namespace Fractal {
 	enum class Type {
+		Null,
 		I32,
 		I64,
 		F64

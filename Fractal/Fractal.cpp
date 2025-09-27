@@ -15,6 +15,10 @@ int main()
 		errorHandler.outputErrors();
 		return EXIT_FAILURE;
 	}
-	parser.statements()[0]->print();
+
+	for (auto& definition : parser.definitions())
+		definition->print();
+	for(auto& statement : parser.statements())
+		statement->print();
 	return EXIT_SUCCESS;
 }

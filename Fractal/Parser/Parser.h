@@ -17,6 +17,7 @@ namespace Fractal {
 
 		bool parse(const TokenList& tokens);
 		const StatementList& statements() const;
+		const DefinitionList& definitions() const;
 	private:
 		// -- Utilities --
 		
@@ -26,6 +27,9 @@ namespace Fractal {
 		// Updates the index and current token
 		void advance();
 		const Token& peek(uint32_t depth = 1) const;
+
+		// Return if current token is of the given type
+		bool match(TokenType type);
 
 		// If current token matches the given type, advance, else throw error
 		void consume(TokenType type, const std::string& errorMessage);
@@ -41,13 +45,29 @@ namespace Fractal {
 		// -- STATEMENTS --
 
 		StatementPtr parseStatement();
+		StatementPtr statementNull();
+		StatementPtr statementReturn();
 		StatementPtr statementExpression();
+		StatementPtr statementCompound();
+		StatementPtr statementIf();
+		StatementPtr statementWhile();
+		StatementPtr statementLoop();
+		StatementPtr statementBreak();
+		StatementPtr statementContinue();
+
+		// -- DEFINITIONS --
+
+		void handleDefinitions();
+		DefinitionPtr parseDefinition();
+		DefinitionPtr definitionFunction();
+		DefinitionPtr definitionVariable();
 	private:
 		int32_t m_currentIndex{ -1 };
 		Token* m_currentToken{ nullptr };
 		TokenList m_tokenList{};
 
 		StatementList m_statements{};
+		DefinitionList m_definitions{};
 
 		ErrorHandler* m_errorHandler{ nullptr };
 	};
