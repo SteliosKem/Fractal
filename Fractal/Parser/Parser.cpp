@@ -249,6 +249,8 @@ namespace Fractal {
 		case FUNCTION:
 			return definitionFunction();
 		case LET:
+		case CONST:
+			return definitionVariable();
 		default:
 			return nullptr;
 		}
@@ -277,6 +279,37 @@ namespace Fractal {
 		}
 
 		return std::make_unique<FunctionDefinition>(nameToken->value, returnType, parseStatement());
+	}
+
+	DefinitionPtr Parser::definitionVariable() {
+		bool isConst = false;
+		if (match(CONST))
+			isConst = true;
+		advance();
+
+		Type variableType = Type::Null;
+		ExpressionPtr initializer = nullptr;
+		Token* nameToken = m_currentToken;
+
+		consume(IDENTIFIER, "Expected a variable name");
+
+		bool specifiedType = false;
+		if (match(COLON)) {
+			specifiedType = true;
+			advance();
+			variableType = getType(currentToken());
+			advance();
+		}
+
+		if (match(EQUAL)) {
+			advance();
+			initializer = parseExpression();
+		}
+		else if (!specifiedType) m_errorHandler->reportError({ "A type must be specified if no initializer is given", currentToken().position});
+
+		CONSUME_SEMICOLON();
+
+		return std::make_unique<VariableDefinition>(nameToken->value, variableType, std::move(initializer), isConst);
 	}
 
 	bool Parser::parse(const TokenList& tokens) {

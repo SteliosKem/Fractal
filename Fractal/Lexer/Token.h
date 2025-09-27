@@ -88,6 +88,7 @@ namespace Fractal {
 			GLOBAL,
 			INTERNAL,
 			MATCH,
+			CONST,
 			KEY_I8,
 			KEY_I16,
 			KEY_I32,
@@ -154,7 +155,8 @@ namespace Fractal {
 		{ "f64"			, KEY_F64	},
 		{ "bool"		, KEY_BOOL	},
 		{ "null"		, KEY_NULL	},
-		{ "match"		, MATCH		}
+		{ "match"		, MATCH		},
+		{ "const"		, CONST		},
 	};
 
 	// Get Keyword TokenType from string if it exists

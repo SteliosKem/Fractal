@@ -26,7 +26,8 @@ namespace Fractal {
 		ContinueStatement,
 
 		Definition,
-		FunctionDefinition
+		FunctionDefinition,
+		VariableDefinition
 	};
 
 #define TYPE(x) NodeType getType() const { return x; }
@@ -253,4 +254,20 @@ namespace Fractal {
 		StatementPtr functionBody;
 	};
 
+	class VariableDefinition : public Definition {
+	public:
+		VariableDefinition(const std::string& variableName, Type variableType, ExpressionPtr initializer, bool isConst)
+			: initializer{ std::move(initializer) }, variableType{ variableType }, variableName{ variableName }, isConst{ isConst } {}
+		void print() const override {
+			std::cout << "=>  " << (isConst ? "const " : "") << "variable '" << variableName << "': ";
+			if (initializer) initializer->print();
+			std::cout << '\n';
+		}
+		TYPE(NodeType::VariableDefinition)
+	public:
+		std::string variableName;
+		Type variableType;
+		ExpressionPtr initializer;
+		bool isConst;
+	};
 }
