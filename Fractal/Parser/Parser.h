@@ -41,6 +41,11 @@ namespace Fractal {
 		ExpressionPtr nud(const Token& token);
 		// Left Denotation
 		ExpressionPtr led(const Token& token, ExpressionPtr left);
+		ExpressionPtr expressionLiteral(const Token& token);
+		ExpressionPtr expressionUnary(const Token& token);
+		ExpressionPtr expressionGroup(const Token& token);
+		ExpressionPtr expressionIdentifier(const Token& token);
+		ExpressionPtr expressionCall(const Token& token);
 
 		// -- STATEMENTS --
 

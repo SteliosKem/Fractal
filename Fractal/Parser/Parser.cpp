@@ -81,27 +81,49 @@ namespace Fractal {
 	ExpressionPtr Parser::nud(const Token& token) {
 		switch (token.type) {
 		case TYPE_INTEGER:
-			return std::make_unique<IntegerLiteral>(stoi(token.value), token.position);
-		case MINUS: {
-			ExpressionPtr expression = parseExpression(100); // Need high binding power
-			return std::make_unique<UnaryOperation>(token, std::move(expression));
-		}
-		case LEFT_PARENTHESIS: {
-			ExpressionPtr expression = parseExpression();
-			if (currentToken().type != RIGHT_PARENTHESIS) {
-				m_errorHandler->reportError({ "Expected ')'", currentToken().position });
-				return nullptr;
-			}
-			// Skip ')'
-			advance();
-			return expression;
-		}
+			return expressionLiteral(token);
+		case MINUS:
+			return expressionUnary(token);
+		case LEFT_PARENTHESIS:
+			return expressionGroup(token);
 		case IDENTIFIER:
-			return std::make_unique<Identifier>(token);
+			return expressionIdentifier(token);
 		default:
 			m_errorHandler->reportError({ "Expected expression ", currentToken().position});
 			return nullptr;
 		}
+	}
+
+	ExpressionPtr Parser::expressionLiteral(const Token& token) {
+		return std::make_unique<IntegerLiteral>(stoi(token.value), token.position);
+	}
+
+	ExpressionPtr Parser::expressionUnary(const Token& token) {
+		ExpressionPtr expression = parseExpression(100); // Need high binding power
+		return std::make_unique<UnaryOperation>(token, std::move(expression));
+	}
+
+	ExpressionPtr Parser::expressionGroup(const Token& token) {
+		ExpressionPtr expression = parseExpression();
+		if (currentToken().type != RIGHT_PARENTHESIS) {
+			m_errorHandler->reportError({ "Expected ')'", currentToken().position });
+			return nullptr;
+		}
+		// Skip ')'
+		advance();
+		return expression;
+	}
+
+	ExpressionPtr Parser::expressionIdentifier(const Token& token) {
+		if (match(LEFT_PARENTHESIS))
+			return expressionCall(token);
+		return std::make_unique<Identifier>(token);
+	}
+
+	ExpressionPtr Parser::expressionCall(const Token& token) {
+		advance();
+		consume(RIGHT_PARENTHESIS, "Expected ')'");
+		return std::make_unique<Call>(token);
 	}
 
 	ExpressionPtr Parser::led(const Token& token, ExpressionPtr left) {

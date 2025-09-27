@@ -14,6 +14,7 @@ namespace Fractal {
 		BinaryOperation,
 		UnaryOperation,
 		Identifier,
+		Call,
 
 		Statement,
 		NullStatement,
@@ -124,6 +125,19 @@ namespace Fractal {
 		TYPE(NodeType::Identifier)
 	public:
 		Token idToken;
+	};
+
+	class Call : public Expression {
+	public:
+		Call(const Token& funcToken) : funcToken{ funcToken } {}
+
+		void print() const override {
+			std::cout << "call '" << funcToken.value << "'";
+		}
+
+		TYPE(NodeType::Call)
+	public:
+		Token funcToken;
 	};
 
 	//
