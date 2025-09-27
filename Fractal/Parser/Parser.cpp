@@ -96,6 +96,8 @@ namespace Fractal {
 			advance();
 			return expression;
 		}
+		case IDENTIFIER:
+			return std::make_unique<Identifier>(token);
 		default:
 			m_errorHandler->reportError({ "Expected expression ", currentToken().position});
 			return nullptr;

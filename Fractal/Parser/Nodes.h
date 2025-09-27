@@ -13,6 +13,7 @@ namespace Fractal {
 		IntegerLiteral,
 		BinaryOperation,
 		UnaryOperation,
+		Identifier,
 
 		Statement,
 		NullStatement,
@@ -110,6 +111,19 @@ namespace Fractal {
 		ExpressionPtr left;
 		ExpressionPtr right;
 		Token operatorToken;
+	};
+
+	class Identifier : public Expression {
+	public:
+		Identifier(const Token& idToken) : idToken{ idToken } {}
+
+		void print() const override {
+			std::cout << "name '" << idToken.value << "'";
+		}
+
+		TYPE(NodeType::Identifier)
+	public:
+		Token idToken;
 	};
 
 	//
