@@ -47,10 +47,11 @@ namespace Fractal {
 		TYPE(NodeType::Statement)
 	};
 
-	class Definition {
+	// Derives from Statement in order to be able to create variables in local scope
+	class Definition : public Statement {
 	public:
 		virtual ~Definition() = default;
-		virtual void print() const {}
+		virtual void print(uint8_t indent = 0) const override {}
 		TYPE(NodeType::Definition)
 	};
 
@@ -242,7 +243,7 @@ namespace Fractal {
 	public:
 		FunctionDefinition(const std::string& functionName, Type returnType, StatementPtr functionBody)
 			: functionBody{ std::move(functionBody) }, returnType{ returnType }, functionName { functionName } {}
-		void print() const override {
+		void print(uint8_t indent = 0) const override {
 			std::cout << "=>  function '" << functionName << "':\n";
 			functionBody->print();
 			std::cout << "!=> \n";
@@ -256,10 +257,10 @@ namespace Fractal {
 
 	class VariableDefinition : public Definition {
 	public:
-		VariableDefinition(const std::string& variableName, Type variableType, ExpressionPtr initializer, bool isConst)
-			: initializer{ std::move(initializer) }, variableType{ variableType }, variableName{ variableName }, isConst{ isConst } {}
-		void print() const override {
-			std::cout << "=>  " << (isConst ? "const " : "") << "variable '" << variableName << "': ";
+		VariableDefinition(const std::string& variableName, Type variableType, ExpressionPtr initializer, bool isConst, bool isGlobal)
+			: initializer{ std::move(initializer) }, variableType{ variableType }, variableName{ variableName }, isConst{ isConst }, isGlobal{ isGlobal } {}
+		void print(uint8_t indent = 0) const override {
+			std::cout << "=>  " << (isGlobal ? "global " : "local ") << (isConst ? "const " : "") << "variable '" << variableName << "': ";
 			if (initializer) initializer->print();
 			std::cout << '\n';
 		}
@@ -269,5 +270,6 @@ namespace Fractal {
 		Type variableType;
 		ExpressionPtr initializer;
 		bool isConst;
+		bool isGlobal;
 	};
 }

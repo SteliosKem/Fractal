@@ -144,6 +144,10 @@ namespace Fractal {
 				return statementBreak();
 			case CONTINUE:
 				return statementContinue();
+			case LET:
+			case CONST:
+				// Local variable
+				return definitionVariable(false);
 		}
 		return statementExpression();
 	}
@@ -250,7 +254,7 @@ namespace Fractal {
 			return definitionFunction();
 		case LET:
 		case CONST:
-			return definitionVariable();
+			return definitionVariable(true);
 		default:
 			return nullptr;
 		}
@@ -281,7 +285,7 @@ namespace Fractal {
 		return std::make_unique<FunctionDefinition>(nameToken->value, returnType, parseStatement());
 	}
 
-	DefinitionPtr Parser::definitionVariable() {
+	DefinitionPtr Parser::definitionVariable(bool isGlobal) {
 		bool isConst = false;
 		if (match(CONST))
 			isConst = true;
@@ -309,7 +313,7 @@ namespace Fractal {
 
 		CONSUME_SEMICOLON();
 
-		return std::make_unique<VariableDefinition>(nameToken->value, variableType, std::move(initializer), isConst);
+		return std::make_unique<VariableDefinition>(nameToken->value, variableType, std::move(initializer), isConst, isGlobal);
 	}
 
 	bool Parser::parse(const TokenList& tokens) {

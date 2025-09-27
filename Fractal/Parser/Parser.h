@@ -60,7 +60,7 @@ namespace Fractal {
 		void handleDefinitions();
 		DefinitionPtr parseDefinition();
 		DefinitionPtr definitionFunction();
-		DefinitionPtr definitionVariable();
+		DefinitionPtr definitionVariable(bool isGlobal = true);
 	private:
 		int32_t m_currentIndex{ -1 };
 		Token* m_currentToken{ nullptr };
