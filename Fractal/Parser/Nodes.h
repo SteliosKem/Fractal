@@ -11,6 +11,7 @@ namespace Fractal {
 	enum class NodeType {
 		Expression,
 		IntegerLiteral,
+		FloatLiteral,
 		BinaryOperation,
 		UnaryOperation,
 		Identifier,
@@ -75,6 +76,16 @@ namespace Fractal {
 		TYPE(NodeType::IntegerLiteral)
 	public:
 		int64_t value;
+		Position position;
+	};
+
+	class FloatLiteral : public Expression {
+	public:
+		FloatLiteral(double value, const Position& position) : value{ value }, position{ position } {}
+		void print() const override { std::cout << value; }
+		TYPE(NodeType::FloatLiteral)
+	public:
+		double value;
 		Position position;
 	};
 

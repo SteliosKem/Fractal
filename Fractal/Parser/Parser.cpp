@@ -81,8 +81,10 @@ namespace Fractal {
 	ExpressionPtr Parser::nud(const Token& token) {
 		switch (token.type) {
 		case TYPE_INTEGER:
+		case TYPE_FLOAT:
 			return expressionLiteral(token);
 		case MINUS:
+		case BANG:
 			return expressionUnary(token);
 		case LEFT_PARENTHESIS:
 			return expressionGroup(token);
@@ -95,7 +97,13 @@ namespace Fractal {
 	}
 
 	ExpressionPtr Parser::expressionLiteral(const Token& token) {
-		return std::make_unique<IntegerLiteral>(stoi(token.value), token.position);
+		switch (token.type) {
+		case TYPE_INTEGER:
+			return std::make_unique<IntegerLiteral>(stoi(token.value), token.position);
+		case TYPE_FLOAT:
+			return std::make_unique<FloatLiteral>(stof(token.value), token.position);
+		}
+		
 	}
 
 	ExpressionPtr Parser::expressionUnary(const Token& token) {
