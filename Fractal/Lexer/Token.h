@@ -184,20 +184,24 @@ namespace Fractal {
 		}
 	}
 
-	inline Type getType(const Token& token) {
+	inline BasicType getBasicType(const Token& token) {
 		switch (token.type)
 		{
 		case KEY_I8:
 		case KEY_I16:
 		case KEY_I32:
-			return Type::I32;
+			return BasicType::I32;
 		case KEY_I64:
-			return Type::I64;
+			return BasicType::I64;
 		case KEY_F32:
+			return BasicType::F64;
 		case KEY_F64:
+			return BasicType::F32;
 		case KEY_BOOL:
+			return BasicType::I32;
+		case KEY_NULL:
 		default:
-			return Type::I32;
+			return BasicType::Null;
 		}
 	}
 

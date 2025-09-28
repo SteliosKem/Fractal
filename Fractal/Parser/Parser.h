@@ -34,6 +34,9 @@ namespace Fractal {
 		// If current token matches the given type, advance, else throw error
 		void consume(TokenType type, const std::string& errorMessage);
 
+		// Is able to return basic types, pointers, arrays etc
+		Type parseType();
+
 		// -- EXPRESSIONS --
 
 		ExpressionPtr parseExpression(BindingPower bindingPower = 0);

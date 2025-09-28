@@ -5,10 +5,23 @@
 #pragma once
 
 namespace Fractal {
-	enum class Type {
+	enum class BasicType {
 		Null,
 		I32,
 		I64,
-		F64
+		F32,
+		F64,
+	};
+
+	enum class TypeInfo {
+		Fundamental,
+		UserDefined,
+		Pointer,
+		Array
+	};
+
+	struct Type {
+		BasicType basicType;
+		TypeInfo typeInfo;
 	};
 }

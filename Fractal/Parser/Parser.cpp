@@ -66,6 +66,33 @@ namespace Fractal {
 		return m_tokenList[m_tokenList.size() - 1];
 	}
 
+	Type Parser::parseType() {
+		switch (currentToken().type) {
+			case LEFT_PARENTHESIS: {
+				advance();
+				if (!isTypeToken(currentToken())) m_errorHandler->reportError({ "Expected type after '('", currentToken().position});
+				BasicType type = getBasicType(currentToken());
+				advance();
+				consume(RIGHT_PARENTHESIS, "Expected ')'");
+				return {type, TypeInfo::Pointer};
+			}
+			case LEFT_BRACKET: {
+				advance();
+				if (!isTypeToken(currentToken())) m_errorHandler->reportError({ "Expected type after '['", currentToken().position });
+				BasicType type = getBasicType(currentToken());
+				advance();
+				consume(RIGHT_BRACKET, "Expected ']'");
+				return { type, TypeInfo::Array };
+			}
+			default: {
+				if (!isTypeToken(currentToken())) m_errorHandler->reportError({ "Expected type", currentToken().position });
+				BasicType type = getBasicType(currentToken());
+				advance();
+				return { type, TypeInfo::Fundamental };
+			}
+		}
+	}
+
 	ExpressionPtr Parser::parseExpression(BindingPower bindingPower) {
 		Token* token = m_currentToken;
 		advance();
@@ -306,7 +333,7 @@ namespace Fractal {
 		// Skip 'fn'
 		advance();
 
-		Type returnType = Type::Null;
+		Type returnType = { BasicType::Null, TypeInfo::Fundamental };
 
 		Token* nameToken = m_currentToken;
 		consume(IDENTIFIER, "Expected a function name after 'fn'");
@@ -318,10 +345,7 @@ namespace Fractal {
 				Token* nameToken = m_currentToken;
 				consume(IDENTIFIER, "Expected parameter name");
 				consume(COLON, "Expected ':' after parameter name to specify the parameter type");
-				if (!isTypeToken(currentToken()))
-					m_errorHandler->reportError({ "Expected type after ':'", currentToken().position });
-				parameterList.push_back(std::make_unique<Parameter>(nameToken->value, getType(currentToken()), nullptr));
-				advance();
+				parameterList.push_back(std::make_unique<Parameter>(nameToken->value, parseType(), nullptr));
 				if (match(COMMA)) advance();
 				else if (!match(RIGHT_PARENTHESIS)) break;
 			}
@@ -330,10 +354,7 @@ namespace Fractal {
 		
 		if (match(COLON)) {
 			advance();
-			Token* typeToken = m_currentToken;
-			if (!isTypeToken(currentToken()))
-				m_errorHandler->reportError({ "Expected a type after ':' in function definition", typeToken->position});
-			advance();
+			returnType = parseType();
 		}
 
 		return std::make_unique<FunctionDefinition>(nameToken->value, parameterList, returnType, std::move(parseStatement()));
@@ -345,7 +366,7 @@ namespace Fractal {
 			isConst = true;
 		advance();
 
-		Type variableType = Type::Null;
+		Type variableType = { BasicType::Null, TypeInfo::Fundamental };
 		ExpressionPtr initializer = nullptr;
 		Token* nameToken = m_currentToken;
 
@@ -355,8 +376,7 @@ namespace Fractal {
 		if (match(COLON)) {
 			specifiedType = true;
 			advance();
-			variableType = getType(currentToken());
-			advance();
+			variableType = parseType();
 		}
 
 		if (match(EQUAL)) {
