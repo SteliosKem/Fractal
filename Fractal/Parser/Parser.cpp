@@ -119,6 +119,8 @@ namespace Fractal {
 			return expressionGroup(token);
 		case IDENTIFIER:
 			return expressionIdentifier(token);
+		case LEFT_BRACKET:
+			return expressionArray();
 		default:
 			m_errorHandler->reportError({ "Expected expression ", currentToken().position});
 			return nullptr;
@@ -175,6 +177,18 @@ namespace Fractal {
 
 		consume(RIGHT_PARENTHESIS, "Expected ')'");
 		return std::make_unique<Call>(token, argList);
+	}
+
+	ExpressionPtr Parser::expressionArray() {
+		std::vector<ExpressionPtr> expressions;
+		while (!match(RIGHT_BRACKET) && !match(SPECIAL_EOF)) {
+			expressions.push_back(std::move(parseExpression()));
+			if (match(COMMA)) advance();
+			else if (!match(RIGHT_BRACKET)) break;
+		}
+
+		consume(RIGHT_BRACKET, "Expected ']'");
+		return std::make_unique<ArrayList>(expressions, Type{ BasicType::Null, TypeInfo::Fundamental });
 	}
 
 	ExpressionPtr Parser::led(const Token& token, ExpressionPtr left) {

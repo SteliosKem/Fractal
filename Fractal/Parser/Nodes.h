@@ -14,6 +14,7 @@ namespace Fractal {
 		StringLiteral,
 		CharacterLiteral,
 		FloatLiteral,
+		ArrayList,
 		BinaryOperation,
 		UnaryOperation,
 		Identifier,
@@ -110,6 +111,23 @@ namespace Fractal {
 	public:
 		char value;
 		Position position;
+	};
+
+	class ArrayList : public Expression {
+	public:
+		ArrayList(std::vector<ExpressionPtr>& elements, Type elementType) : elements{ std::move(elements) }, elementType{ elementType } {}
+		void print() const override { 
+			std::cout << "Array [";
+			for (auto& element : elements) {
+				element->print();
+				std::cout << ", ";
+			}
+			std::cout << ']';
+		}
+		TYPE(NodeType::ArrayList)
+	public:
+		std::vector<ExpressionPtr> elements;
+		Type elementType;
 	};
 
 	class UnaryOperation : public Expression {

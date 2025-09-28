@@ -49,6 +49,7 @@ namespace Fractal {
 		ExpressionPtr expressionGroup(const Token& token);
 		ExpressionPtr expressionIdentifier(const Token& token);
 		ExpressionPtr expressionCall(const Token& token);
+		ExpressionPtr expressionArray();
 
 		// -- STATEMENTS --
 
