@@ -109,6 +109,8 @@ namespace Fractal {
 		switch (token.type) {
 		case TYPE_INTEGER:
 		case TYPE_FLOAT:
+		case STRING_LITERAL:
+		case CHARACTER_LITERAL:
 			return expressionLiteral(token);
 		case MINUS:
 		case BANG:
@@ -129,6 +131,10 @@ namespace Fractal {
 			return std::make_unique<IntegerLiteral>(stoi(token.value), token.position);
 		case TYPE_FLOAT:
 			return std::make_unique<FloatLiteral>(stof(token.value), token.position);
+		case STRING_LITERAL:
+			return std::make_unique<StringLiteral>(token.value, token.position);
+		case CHARACTER_LITERAL:
+			return std::make_unique<CharacterLiteral>(*token.value.c_str(), token.position);
 		}
 		
 	}

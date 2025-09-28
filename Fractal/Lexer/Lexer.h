@@ -49,7 +49,7 @@ namespace Fractal {
 		Token makeNumberToken();
 
 		// Create a string literal token
-		Token makeStringToken();
+		Token makeStringToken(char character);
 
 		// Create a keyword or identifier token
 		Token makeNameToken();

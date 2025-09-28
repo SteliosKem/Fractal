@@ -101,6 +101,8 @@ namespace Fractal {
 
 		// -- Types --
 			IDENTIFIER,
+			STRING_LITERAL,
+			CHARACTER_LITERAL,
 			TYPE_I8,
 			TYPE_I16,
 			TYPE_I32,

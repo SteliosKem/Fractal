@@ -171,7 +171,9 @@ namespace Fractal {
 			DOUBLE_OR_SINGLE('>', GREATER, '=', ">=", GREATER_EQUAL);
 			case '-':	/* Match Arrow */ if (match('>')) { advance(); return Token{ ARROW, "->", nextPosition }; }
 					to_return = match('=') ? Token{ MINUS_EQUAL, "-=", nextPosition } : Token{ MINUS, "-", position }; advance(); return to_return;
-			case '"':	return makeStringToken();
+			case '\'':
+			case '"':	
+				return makeStringToken(currentCharacter());
 			case '\0':	return Token{ SPECIAL_EOF, "EOF", position };
 			default:
 				break;
@@ -233,9 +235,26 @@ namespace Fractal {
 		return keywordType == NO_TYPE ? Token{ IDENTIFIER, nameString, position } : Token{ keywordType, nameString, position };
 	}
 
-	Token Lexer::makeStringToken() {
-		// TO-DO
-		return Token{};
+	Token Lexer::makeStringToken(char character) {
+		std::string string{ "" };
+		// Store position for start index
+		Position position = m_currentPosition;
+
+		// For error reporting if there is an unterminated string
+		Position lastPos = m_currentPosition;
+		advance();
+		// Make name from all characters next to eachother in the string
+		while (currentCharacter() != character && currentCharacter() != '\0' && currentCharacter() != '\n') {
+			lastPos = m_currentPosition;
+			string += currentCharacter();
+			advance();
+		}
+
+		if (currentCharacter() != character) m_errorHandler->reportError({ "Unterminated string or character literal", lastPos });
+
+		position.endIndex = m_currentSourceIndex;
+		advance();
+		return character == '"' ? Token{STRING_LITERAL, string, position} : Token{CHARACTER_LITERAL, string, position};
 	}
 
 	bool Lexer::analyze(const std::filesystem::path& filepath) {
