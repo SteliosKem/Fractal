@@ -127,17 +127,41 @@ namespace Fractal {
 		Token idToken;
 	};
 
+	// MISC
+
+	class Argument {
+	public:
+		Argument(const std::string& name, ExpressionPtr expression) : name{ name }, expression{ std::move(expression) } {}
+		void print() {
+			std::cout << "arg " << name;
+			expression->print();
+		}
+	public:
+		std::string name;
+		ExpressionPtr expression;
+	};
+
+	using ArgumentPtr = std::unique_ptr<Argument>;
+	using ArgumentList = std::vector<ArgumentPtr>;
+
+
 	class Call : public Expression {
 	public:
-		Call(const Token& funcToken) : funcToken{ funcToken } {}
+		Call(const Token& funcToken, ArgumentList& argumentList) : funcToken{ funcToken }, argumentList{ std::move(argumentList) } {}
 
 		void print() const override {
-			std::cout << "call '" << funcToken.value << "'";
+			std::cout << "call '" << funcToken.value << "' (";
+			for (auto& arg : argumentList) {
+				arg->print();
+				std::cout << ", ";
+			}
+			std::cout << ")";
 		}
 
 		TYPE(NodeType::Call)
 	public:
 		Token funcToken;
+		ArgumentList argumentList;
 	};
 
 	//
@@ -263,16 +287,40 @@ namespace Fractal {
 		Token token;
 	};
 
+
+	// MISC
+
+	class Parameter {
+	public:
+		Parameter(const std::string& name, Type type, ExpressionPtr defaultValue) 
+			: name{ name }, type{ type }, defaultValue { std::move(defaultValue) } {}
+		void print() {
+			std::cout << "parameter " << name;
+			defaultValue->print();
+		}
+	public:
+		std::string name;
+		Type type;
+		ExpressionPtr defaultValue;
+	};
+
+	using ParameterPtr = std::unique_ptr<Parameter>;
+	using ParameterList = std::vector<ParameterPtr>;
+
 	//
 	// DEFINITIONS
 	//
 
 	class FunctionDefinition : public Definition {
 	public:
-		FunctionDefinition(const std::string& functionName, Type returnType, StatementPtr functionBody)
-			: functionBody{ std::move(functionBody) }, returnType{ returnType }, functionName { functionName } {}
+		FunctionDefinition(const std::string& functionName, ParameterList& parameterList, Type returnType, StatementPtr functionBody)
+			: functionBody{ std::move(functionBody) }, parameterList{ std::move(parameterList) }, returnType{ returnType }, functionName{ functionName } {}
 		void print(uint8_t indent = 0) const override {
-			std::cout << "=>  function '" << functionName << "':\n";
+			std::cout << "=>  function '" << functionName << "'(";
+			for (auto& parameter : parameterList) {
+				std::cout << parameter->name << ", ";
+			}
+			std::cout << "):\n";
 			functionBody->print();
 			std::cout << "!=> \n";
 		}
@@ -280,6 +328,7 @@ namespace Fractal {
 	public:
 		std::string functionName;
 		Type returnType;
+		ParameterList parameterList;
 		StatementPtr functionBody;
 	};
 

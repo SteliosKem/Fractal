@@ -122,8 +122,18 @@ namespace Fractal {
 
 	ExpressionPtr Parser::expressionCall(const Token& token) {
 		advance();
+
+		ArgumentList argList;
+
+		// Parse arguments
+		while (!match(RIGHT_PARENTHESIS) && !match(SPECIAL_EOF)) {
+			argList.push_back(std::make_unique<Argument>("", std::move(parseExpression())));
+			if (match(COMMA)) advance();
+			else if (!match(RIGHT_PARENTHESIS)) break;
+		}
+
 		consume(RIGHT_PARENTHESIS, "Expected ')'");
-		return std::make_unique<Call>(token);
+		return std::make_unique<Call>(token, argList);
 	}
 
 	ExpressionPtr Parser::led(const Token& token, ExpressionPtr left) {
@@ -292,9 +302,21 @@ namespace Fractal {
 
 		Token* nameToken = m_currentToken;
 		consume(IDENTIFIER, "Expected a function name after 'fn'");
+		ParameterList parameterList;
 
 		if (match(LEFT_PARENTHESIS)) {
 			advance();
+			while (!match(RIGHT_PARENTHESIS) && !match(SPECIAL_EOF)) {
+				Token* nameToken = m_currentToken;
+				consume(IDENTIFIER, "Expected parameter name");
+				consume(COLON, "Expected ':' after parameter name to specify the parameter type");
+				if (!isTypeToken(currentToken()))
+					m_errorHandler->reportError({ "Expected type after ':'", currentToken().position });
+				parameterList.push_back(std::make_unique<Parameter>(nameToken->value, getType(currentToken()), nullptr));
+				advance();
+				if (match(COMMA)) advance();
+				else if (!match(RIGHT_PARENTHESIS)) break;
+			}
 			consume(RIGHT_PARENTHESIS, "Expected ')' after function arguments");
 		}
 		
@@ -306,7 +328,7 @@ namespace Fractal {
 			advance();
 		}
 
-		return std::make_unique<FunctionDefinition>(nameToken->value, returnType, parseStatement());
+		return std::make_unique<FunctionDefinition>(nameToken->value, parameterList, returnType, std::move(parseStatement()));
 	}
 
 	DefinitionPtr Parser::definitionVariable(bool isGlobal) {
