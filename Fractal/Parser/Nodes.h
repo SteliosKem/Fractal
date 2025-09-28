@@ -32,7 +32,8 @@ namespace Fractal {
 
 		Definition,
 		FunctionDefinition,
-		VariableDefinition
+		VariableDefinition,
+		ClassDefinition
 	};
 
 #define TYPE(x) NodeType getType() const { return x; }
@@ -381,5 +382,30 @@ namespace Fractal {
 		ExpressionPtr initializer;
 		bool isConst;
 		bool isGlobal;
+	};
+
+	enum class ClassDecoration {
+		Public,
+		Private,
+	};
+
+	using Member = std::pair<DefinitionPtr, ClassDecoration>;
+	using MemberList = std::vector<Member>;
+
+	class ClassDefinition : public Definition {
+	public:
+		ClassDefinition(const std::string& className, MemberList& definitions) : definitions{ std::move(definitions) }, className{ className }{}
+		void print(uint8_t indent = 0) const override {
+			std::cout << "=>  " << "Class '" << className << "': {\n";
+			for (auto& [definition, decoration] : definitions) {
+				std::cout << (decoration == ClassDecoration::Private ? "private " : "public ");
+				definition->print();
+			}
+			std::cout << "}\n";
+		}
+		TYPE(NodeType::ClassDefinition)
+	public:
+		std::string className;
+		MemberList definitions;
 	};
 }

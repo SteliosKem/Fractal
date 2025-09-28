@@ -330,6 +330,8 @@ namespace Fractal {
 		case LET:
 		case CONST:
 			return definitionVariable(true);
+		case CLASS:
+			return definitionClass();
 		default:
 			return nullptr;
 		}
@@ -394,6 +396,40 @@ namespace Fractal {
 		CONSUME_SEMICOLON();
 
 		return std::make_unique<VariableDefinition>(nameToken->value, variableType, std::move(initializer), isConst, isGlobal);
+	}
+
+	DefinitionPtr Parser::definitionClass() {
+		advance();
+		Token* nameToken = m_currentToken;
+		consume(IDENTIFIER, "Expected class name");
+		consume(LEFT_BRACE, "Expected '{' after class name");
+
+		MemberList classMembers;
+
+		while (!match(RIGHT_BRACE) && !match(SPECIAL_EOF)) {
+			if (match(PUBLIC)) {
+				advance();
+				DefinitionPtr def = parseDefinition();
+				if (def == nullptr)
+					break;
+				classMembers.push_back({ std::move(def), ClassDecoration::Public });
+			}
+			else if (match(PRIVATE)) {
+				advance();
+				DefinitionPtr def = parseDefinition();
+				if (def == nullptr)
+					break;
+				classMembers.push_back({ std::move(def), ClassDecoration::Private });
+			}
+			else {
+				m_errorHandler->reportError({ "Expected member definition", currentToken().position });
+				advance();
+			};
+		}
+
+		consume(RIGHT_BRACE, "Expected '}'");
+
+		return std::make_unique<ClassDefinition>(nameToken->value, classMembers);
 	}
 
 	bool Parser::parse(const TokenList& tokens) {
