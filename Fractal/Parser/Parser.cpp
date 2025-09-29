@@ -26,6 +26,8 @@ namespace Fractal {
 				return 40;
 			case OR:
 				return 30;
+			case EQUAL:
+				return 20;
 			default:
 				return 0;
 		}
@@ -207,6 +209,12 @@ namespace Fractal {
 				ExpressionPtr right = parseExpression(bindingPower);
 				return std::make_unique<BinaryOperation>(std::move(left), token, std::move(right));
 			}
+			case EQUAL: {
+				BindingPower bindingPower = tokenBindingPower(token);
+				ExpressionPtr right = parseExpression(bindingPower);
+				return std::make_unique<Assignment>(std::move(left), token, std::move(right));
+			}
+
 			default:
 				return nullptr;
 		}

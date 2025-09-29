@@ -19,6 +19,7 @@ namespace Fractal {
 		UnaryOperation,
 		Identifier,
 		Call,
+		Assignment,
 
 		Statement,
 		NullStatement,
@@ -177,6 +178,26 @@ namespace Fractal {
 		TYPE(NodeType::Identifier)
 	public:
 		Token idToken;
+	};
+
+	class Assignment : public Expression {
+	public:
+		Assignment(ExpressionPtr left, const Token& operatorToken, ExpressionPtr right)
+			: left{ std::move(left) }, operatorToken{ operatorToken }, right{ std::move(right) } {}
+
+		void print() const override {
+			std::cout << "(Assign ";
+			left->print();
+			std::cout << " = ";
+			right->print();
+			std::cout << ')';
+		}
+
+		TYPE(NodeType::BinaryOperation)
+	public:
+		ExpressionPtr left;
+		ExpressionPtr right;
+		Token operatorToken;
 	};
 
 	// MISC
