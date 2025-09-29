@@ -166,7 +166,8 @@ namespace Fractal {
 			DOUBLE_OR_SINGLE('*', STAR, '=', "*=", STAR_EQUAL);
 			DOUBLE_OR_SINGLE('/', SLASH, '=', "/=", SLASH_EQUAL);
 			DOUBLE_OR_SINGLE('!', BANG, '=', "!=", BANG_EQUAL);
-			DOUBLE_OR_SINGLE('=', EQUAL, '=', "==", EQUAL_EQUAL);
+			case '=':	/* Match Double Arrow */ if (match('>')) { advance(); return Token{ DOUBLE_ARROW, "=>", nextPosition }; }
+					to_return = match('=') ? Token{ EQUAL_EQUAL, "==", nextPosition } : Token{ EQUAL, "=", position }; advance(); return to_return;
 			DOUBLE_OR_SINGLE('<', LESS, '=', "<=", LESS_EQUAL);
 			DOUBLE_OR_SINGLE('>', GREATER, '=', ">=", GREATER_EQUAL);
 			case '-':	/* Match Arrow */ if (match('>')) { advance(); return Token{ ARROW, "->", nextPosition }; }

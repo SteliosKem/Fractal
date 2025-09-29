@@ -8,6 +8,9 @@
 namespace Fractal {
 	uint8_t tokenBindingPower(const Token& token) {
 		switch (token.type) {
+			case DOT:
+			case ARROW:
+				return 110;
 			case STAR:
 			case SLASH:
 				return 80;
@@ -214,14 +217,19 @@ namespace Fractal {
 				ExpressionPtr right = parseExpression(bindingPower);
 				return std::make_unique<Assignment>(std::move(left), token, std::move(right));
 			}
-
+			case ARROW:
+			case DOT: {
+				BindingPower bindingPower = tokenBindingPower(token);
+				ExpressionPtr right = parseExpression(bindingPower);
+				return std::make_unique<MemberAccess>(std::move(left), token, std::move(right));
+			}
 			default:
 				return nullptr;
 		}
 	}
 
 #define CONSUME_SEMICOLON() consume(SEMICOLON, "Expected ';'")
-#define CONSUME_ARROW() consume(ARROW, "Expected '->'")
+#define CONSUME_DOUBLE_ARROW() consume(DOUBLE_ARROW, "Expected '=>'")
 
 	StatementPtr Parser::parseStatement() {
 		switch (currentToken().type) {
@@ -284,7 +292,7 @@ namespace Fractal {
 	StatementPtr Parser::statementIf() {
 		advance();
 		ExpressionPtr condition = parseExpression();
-		CONSUME_ARROW();
+		CONSUME_DOUBLE_ARROW();
 		StatementPtr ifBody = parseStatement();
 		StatementPtr elseBody = nullptr;
 		if (match(ELSE)) {
@@ -303,7 +311,7 @@ namespace Fractal {
 	StatementPtr Parser::statementWhile() {
 		advance();
 		ExpressionPtr condition = parseExpression();
-		CONSUME_ARROW();
+		CONSUME_DOUBLE_ARROW();
 		StatementPtr loopBody = parseStatement();
 		return std::make_unique<WhileStatement>(std::move(condition), std::move(loopBody));
 	}

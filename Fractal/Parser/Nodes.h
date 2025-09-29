@@ -20,6 +20,7 @@ namespace Fractal {
 		Identifier,
 		Call,
 		Assignment,
+		MemberAccess,
 
 		Statement,
 		NullStatement,
@@ -194,6 +195,26 @@ namespace Fractal {
 		}
 
 		TYPE(NodeType::BinaryOperation)
+	public:
+		ExpressionPtr left;
+		ExpressionPtr right;
+		Token operatorToken;
+	};
+
+	class MemberAccess : public Expression {
+	public:
+		MemberAccess(ExpressionPtr left, const Token& operatorToken, ExpressionPtr right)
+			: left{ std::move(left) }, operatorToken{ operatorToken }, right{ std::move(right) } {}
+
+		void print() const override {
+			std::cout << "(Access ";
+			right->print();
+			std::cout << " from " << (operatorToken.type == DOT ? "" : "pointer ");
+			left->print();
+			std::cout << ')';
+		}
+
+		TYPE(NodeType::MemberAccess)
 	public:
 		ExpressionPtr left;
 		ExpressionPtr right;
