@@ -9,24 +9,24 @@ namespace Fractal {
 		m_program = program;
 
 		for (auto& definition : m_program->definitions)
-			if (!analyzeDefinition(std::move(definition))) return false;
+			if (!analyzeDefinition(definition)) return false;
 
 		for (auto& statement : m_program->statements)
-			if (!analyzeStatement(std::move(statement))) return false;
+			if (!analyzeStatement(statement)) return false;
 
 		return true;
 	}
 
 	bool SemanticAnalyzer::analyzeDefinition(DefinitionPtr definition) {
 		switch (definition->getType()) {
-			case NodeType::FunctionDefinition: return analyzeDefinitionFunction(std::move(definition));
-			case NodeType::VariableDefinition: return analyzeDefinitionVariable(std::move(definition));
-			case NodeType::ClassDefinition: return analyzeDefinitionClass(std::move(definition));
+			case NodeType::FunctionDefinition: return analyzeDefinitionFunction(definition);
+			case NodeType::VariableDefinition: return analyzeDefinitionVariable(definition);
+			case NodeType::ClassDefinition: return analyzeDefinitionClass(definition);
 		}
 	}
 
 	bool SemanticAnalyzer::analyzeDefinitionFunction(DefinitionPtr definition) {
-		FunctionDefinition* functionDefinition = static_cast<FunctionDefinition*>(definition.get());
+		std::shared_ptr<FunctionDefinition> functionDefinition = static_pointer_cast<FunctionDefinition>(definition);
 
 		if (std::find(m_globals.begin(), m_globals.end(), functionDefinition->nameToken.value) != m_globals.end()) {
 			m_errorHandler->reportError({ "Function '" + functionDefinition->nameToken.value + "' is already defined", functionDefinition->nameToken.position });
@@ -36,6 +36,7 @@ namespace Fractal {
 		m_globals.push_back(functionDefinition->nameToken.value);
 
 		if (!analyzeParameters(functionDefinition->parameterList)) return false;
+		if (!analyzeStatement(functionDefinition->functionBody)) return false;
 	}
 
 	bool SemanticAnalyzer::analyzeParameters(const ParameterList& paramList) {

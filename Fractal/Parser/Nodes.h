@@ -65,12 +65,12 @@ namespace Fractal {
 		TYPE(NodeType::Definition)
 	};
 
-	using ExpressionPtr = std::unique_ptr<Expression>;
-	using StatementPtr = std::unique_ptr<Statement>;
-	using DefinitionPtr = std::unique_ptr<Definition>;
+	using ExpressionPtr = std::shared_ptr<Expression>;
+	using StatementPtr = std::shared_ptr<Statement>;
+	using DefinitionPtr = std::shared_ptr<Definition>;
 
-	using StatementList = std::vector<std::unique_ptr<Statement>>;
-	using DefinitionList = std::vector<std::unique_ptr<Definition>>;
+	using StatementList = std::vector<std::shared_ptr<Statement>>;
+	using DefinitionList = std::vector<std::shared_ptr<Definition>>;
 
 	//
 	// Expressions
@@ -118,7 +118,7 @@ namespace Fractal {
 
 	class ArrayList : public Expression {
 	public:
-		ArrayList(std::vector<ExpressionPtr>& elements, Type elementType) : elements{ std::move(elements) }, elementType{ elementType } {}
+		ArrayList(const std::vector<ExpressionPtr>& elements, Type elementType) : elements{ elements }, elementType{ elementType } {}
 		void print() const override { 
 			std::cout << "Array [";
 			for (auto& element : elements) {
@@ -135,7 +135,7 @@ namespace Fractal {
 
 	class UnaryOperation : public Expression {
 	public:
-		UnaryOperation(const Token& operatorToken, ExpressionPtr expression) : operatorToken{ operatorToken }, expression{ std::move(expression) } {}
+		UnaryOperation(const Token& operatorToken, ExpressionPtr expression) : operatorToken{ operatorToken }, expression{ expression } {}
 
 		void print() const override {
 			std::cout << operatorToken.value << '(';
@@ -152,7 +152,7 @@ namespace Fractal {
 	class BinaryOperation : public Expression {
 	public:
 		BinaryOperation(ExpressionPtr left, const Token& operatorToken, ExpressionPtr right)
-			: left{ std::move(left) }, operatorToken{operatorToken}, right{ std::move(right) } {}
+			: left{ left }, operatorToken{operatorToken}, right{ right } {}
 
 		void print() const override {
 			std::cout << '(';
@@ -185,7 +185,7 @@ namespace Fractal {
 	class Assignment : public Expression {
 	public:
 		Assignment(ExpressionPtr left, const Token& operatorToken, ExpressionPtr right)
-			: left{ std::move(left) }, operatorToken{ operatorToken }, right{ std::move(right) } {}
+			: left{ left }, operatorToken{ operatorToken }, right{ right } {}
 
 		void print() const override {
 			std::cout << "(Assign ";
@@ -205,7 +205,7 @@ namespace Fractal {
 	class MemberAccess : public Expression {
 	public:
 		MemberAccess(ExpressionPtr left, const Token& operatorToken, ExpressionPtr right)
-			: left{ std::move(left) }, operatorToken{ operatorToken }, right{ std::move(right) } {}
+			: left{ left }, operatorToken{ operatorToken }, right{ right } {}
 
 		void print() const override {
 			std::cout << "(Access ";
@@ -226,7 +226,7 @@ namespace Fractal {
 
 	class Argument {
 	public:
-		Argument(const std::string& name, ExpressionPtr expression) : name{ name }, expression{ std::move(expression) } {}
+		Argument(const std::string& name, ExpressionPtr expression) : name{ name }, expression{ expression } {}
 		void print() {
 			std::cout << "arg " << name;
 			expression->print();
@@ -242,7 +242,7 @@ namespace Fractal {
 
 	class Call : public Expression {
 	public:
-		Call(const Token& funcToken, ArgumentList& argumentList) : funcToken{ funcToken }, argumentList{ std::move(argumentList) } {}
+		Call(const Token& funcToken, ArgumentList& argumentList) : funcToken{ funcToken }, argumentList{ argumentList } {}
 
 		void print() const override {
 			std::cout << "call '" << funcToken.value << "' (";
@@ -273,7 +273,7 @@ namespace Fractal {
 
 	class CompoundStatement : public Statement {
 	public:
-		CompoundStatement(StatementList& statementList) : statements{ std::move(statementList) } {}
+		CompoundStatement(StatementList& statementList) : statements{ statementList } {}
 		void print(uint8_t indent = 0) const override {
 			std::cout << "{\n";
 			for (size_t i = 0; i < statements.size(); i++)
@@ -288,7 +288,7 @@ namespace Fractal {
 	class IfStatement : public Statement {
 	public:
 		IfStatement(ExpressionPtr condition, StatementPtr ifBody, StatementPtr elseBody)
-			: condition{ std::move(condition) }, ifBody{ std::move(ifBody) }, elseBody{ std::move(elseBody) } {}
+			: condition{ condition }, ifBody{ ifBody }, elseBody{ elseBody } {}
 		void print(uint8_t indent = 0) const override {
 			std::cout << "->  If ";
 			condition->print();
@@ -308,7 +308,7 @@ namespace Fractal {
 
 	class LoopStatement : public Statement {
 	public:
-		LoopStatement(StatementPtr loopBody) : loopBody{ std::move(loopBody) } {}
+		LoopStatement(StatementPtr loopBody) : loopBody{ loopBody } {}
 		void print(uint8_t indent = 0) const override {
 			std::cout << "->  Loop ";
 			loopBody->print();
@@ -320,7 +320,7 @@ namespace Fractal {
 
 	class WhileStatement : public Statement {
 	public:
-		WhileStatement(ExpressionPtr condition, StatementPtr loopBody) : condition{ std::move(condition) }, loopBody{ std::move(loopBody) } {}
+		WhileStatement(ExpressionPtr condition, StatementPtr loopBody) : condition{ condition }, loopBody{ loopBody } {}
 		void print(uint8_t indent = 0) const override {
 			std::cout << "->  While ";
 			condition->print();
@@ -357,7 +357,7 @@ namespace Fractal {
 
 	class ExpressionStatement : public Statement {
 	public:
-		ExpressionStatement(ExpressionPtr expression) : expression{ std::move(expression) } {}
+		ExpressionStatement(ExpressionPtr expression) : expression{ expression } {}
 		void print(uint8_t indent = 0) const override {
 			std::cout << "->  ";
 			expression->print();
@@ -370,7 +370,7 @@ namespace Fractal {
 
 	class ReturnStatement : public Statement {
 	public:
-		ReturnStatement(ExpressionPtr expression, const Token& token) : expression{ std::move(expression) }, token{ token } {}
+		ReturnStatement(ExpressionPtr expression, const Token& token) : expression{ expression }, token{ token } {}
 		void print(uint8_t indent = 0) const override {
 			std::cout << "->  return ";
 			expression->print();
@@ -388,7 +388,7 @@ namespace Fractal {
 	class Parameter {
 	public:
 		Parameter(const Token& nameToken, Type type, ExpressionPtr defaultValue) 
-			: nameToken{ nameToken }, type{ type }, defaultValue { std::move(defaultValue) } {}
+			: nameToken{ nameToken }, type{ type }, defaultValue { defaultValue } {}
 		void print() {
 			std::cout << "parameter " << nameToken.value;
 			defaultValue->print();
@@ -409,7 +409,7 @@ namespace Fractal {
 	class FunctionDefinition : public Definition {
 	public:
 		FunctionDefinition(const Token& nameToken, ParameterList& parameterList, Type returnType, StatementPtr functionBody)
-			: functionBody{ std::move(functionBody) }, parameterList{ std::move(parameterList) }, returnType{ returnType }, nameToken{ nameToken } {}
+			: functionBody{ functionBody }, parameterList{ parameterList }, returnType{ returnType }, nameToken{ nameToken } {}
 		void print(uint8_t indent = 0) const override {
 			std::cout << "=>  function '" << nameToken.value << "'(";
 			for (auto& parameter : parameterList) {
@@ -430,7 +430,7 @@ namespace Fractal {
 	class VariableDefinition : public Definition {
 	public:
 		VariableDefinition(const std::string& variableName, Type variableType, ExpressionPtr initializer, bool isConst, bool isGlobal)
-			: initializer{ std::move(initializer) }, variableType{ variableType }, variableName{ variableName }, isConst{ isConst }, isGlobal{ isGlobal } {}
+			: initializer{ initializer }, variableType{ variableType }, variableName{ variableName }, isConst{ isConst }, isGlobal{ isGlobal } {}
 		void print(uint8_t indent = 0) const override {
 			std::cout << "=>  " << (isGlobal ? "global " : "local ") << (isConst ? "const " : "") << "variable '" << variableName << "': ";
 			if (initializer) initializer->print();
@@ -455,7 +455,7 @@ namespace Fractal {
 
 	class ClassDefinition : public Definition {
 	public:
-		ClassDefinition(const std::string& className, MemberList& definitions) : definitions{ std::move(definitions) }, className{ className }{}
+		ClassDefinition(const std::string& className, MemberList& definitions) : definitions{ definitions }, className{ className }{}
 		void print(uint8_t indent = 0) const override {
 			std::cout << "=>  " << "Class '" << className << "': {\n";
 			for (auto& [definition, decoration] : definitions) {

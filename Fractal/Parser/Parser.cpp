@@ -55,11 +55,11 @@ namespace Fractal {
 	}
 
 	void Parser::pushStatement(StatementPtr statement) {
-		m_programFile.statements.push_back(std::move(statement));
+		m_programFile.statements.push_back(statement);
 	}
 
 	void Parser::pushDefinition(DefinitionPtr definition) {
-		m_programFile.definitions.push_back(std::move(definition));
+		m_programFile.definitions.push_back(definition);
 	}
 
 	void Parser::consume(TokenType type, const std::string& errorMessage) {
@@ -121,7 +121,7 @@ namespace Fractal {
 		while (tokenBindingPower(currentToken()) > bindingPower) {
 			token = m_currentToken;
 			advance();
-			left = led(*token, std::move(left));
+			left = led(*token, left);
 		}
 		return left;
 	}
@@ -164,7 +164,7 @@ namespace Fractal {
 
 	ExpressionPtr Parser::expressionUnary(const Token& token) {
 		ExpressionPtr expression = parseExpression(100); // Need high binding power
-		return std::make_unique<UnaryOperation>(token, std::move(expression));
+		return std::make_unique<UnaryOperation>(token, expression);
 	}
 
 	ExpressionPtr Parser::expressionGroup(const Token& token) {
@@ -191,7 +191,7 @@ namespace Fractal {
 
 		// Parse arguments
 		while (!match(RIGHT_PARENTHESIS) && !match(SPECIAL_EOF)) {
-			argList.push_back(std::make_unique<Argument>("", std::move(parseExpression())));
+			argList.push_back(std::make_unique<Argument>("", parseExpression()));
 			if (match(COMMA)) advance();
 			else if (!match(RIGHT_PARENTHESIS)) break;
 		}
@@ -203,7 +203,7 @@ namespace Fractal {
 	ExpressionPtr Parser::expressionArray() {
 		std::vector<ExpressionPtr> expressions;
 		while (!match(RIGHT_BRACKET) && !match(SPECIAL_EOF)) {
-			expressions.push_back(std::move(parseExpression()));
+			expressions.push_back(parseExpression());
 			if (match(COMMA)) advance();
 			else if (!match(RIGHT_BRACKET)) break;
 		}
@@ -226,18 +226,18 @@ namespace Fractal {
 			case SLASH: {
 				BindingPower bindingPower = tokenBindingPower(token);
 				ExpressionPtr right = parseExpression(bindingPower);
-				return std::make_unique<BinaryOperation>(std::move(left), token, std::move(right));
+				return std::make_unique<BinaryOperation>(left, token, right);
 			}
 			case EQUAL: {
 				BindingPower bindingPower = tokenBindingPower(token);
 				ExpressionPtr right = parseExpression(bindingPower);
-				return std::make_unique<Assignment>(std::move(left), token, std::move(right));
+				return std::make_unique<Assignment>(left, token, right);
 			}
 			case ARROW:
 			case DOT: {
 				BindingPower bindingPower = tokenBindingPower(token);
 				ExpressionPtr right = parseExpression(bindingPower);
-				return std::make_unique<MemberAccess>(std::move(left), token, std::move(right));
+				return std::make_unique<MemberAccess>(left, token, right);
 			}
 			default:
 				return nullptr;
@@ -315,13 +315,13 @@ namespace Fractal {
 			advance();
 			elseBody = parseStatement();
 		}
-		return std::make_unique<IfStatement>(std::move(condition), std::move(ifBody), std::move(elseBody));
+		return std::make_unique<IfStatement>(condition, ifBody, elseBody);
 	}
 
 	StatementPtr Parser::statementLoop() {
 		advance();
 		StatementPtr loopBody = parseStatement();
-		return std::make_unique<LoopStatement>(std::move(loopBody));
+		return std::make_unique<LoopStatement>(loopBody);
 	}
 
 	StatementPtr Parser::statementWhile() {
@@ -329,7 +329,7 @@ namespace Fractal {
 		ExpressionPtr condition = parseExpression();
 		CONSUME_DOUBLE_ARROW();
 		StatementPtr loopBody = parseStatement();
-		return std::make_unique<WhileStatement>(std::move(condition), std::move(loopBody));
+		return std::make_unique<WhileStatement>(condition, loopBody);
 	}
 
 	StatementPtr Parser::statementBreak() {
@@ -356,7 +356,7 @@ namespace Fractal {
 
 		DefinitionPtr ptr;
 		while ((ptr = parseDefinition()) != nullptr)
-			pushDefinition(std::move(ptr));
+			pushDefinition(ptr);
 
 		if (!(currentToken().type == LESS && peek().type == BANG && peek(2).value == "define" && peek(3).type == GREATER))
 			m_errorHandler->reportError({ "Expected end of definition set '<!define>'", currentToken().position });
@@ -411,7 +411,7 @@ namespace Fractal {
 			returnType = parseType();
 		}
 
-		return std::make_unique<FunctionDefinition>(*nameToken, parameterList, returnType, std::move(parseStatement()));
+		return std::make_unique<FunctionDefinition>(*nameToken, parameterList, returnType, parseStatement());
 	}
 
 	DefinitionPtr Parser::definitionVariable(bool isGlobal) {
@@ -441,7 +441,7 @@ namespace Fractal {
 
 		CONSUME_SEMICOLON();
 
-		return std::make_unique<VariableDefinition>(nameToken->value, variableType, std::move(initializer), isConst, isGlobal);
+		return std::make_unique<VariableDefinition>(nameToken->value, variableType, initializer, isConst, isGlobal);
 	}
 
 	DefinitionPtr Parser::definitionClass() {
@@ -458,14 +458,14 @@ namespace Fractal {
 				DefinitionPtr def = parseDefinition();
 				if (def == nullptr)
 					break;
-				classMembers.push_back({ std::move(def), ClassDecoration::Public });
+				classMembers.push_back({ def, ClassDecoration::Public });
 			}
 			else if (match(PRIVATE)) {
 				advance();
 				DefinitionPtr def = parseDefinition();
 				if (def == nullptr)
 					break;
-				classMembers.push_back({ std::move(def), ClassDecoration::Private });
+				classMembers.push_back({ def, ClassDecoration::Private });
 			}
 			else {
 				m_errorHandler->reportError({ "Expected member definition", currentToken().position });
