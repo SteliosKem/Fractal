@@ -11,17 +11,22 @@ namespace Fractal {
 		I64,
 		F32,
 		F64,
+		User,
 	};
 
 	enum class TypeInfo {
 		Fundamental,
 		UserDefined,
 		Pointer,
-		Array
+		Array,
+		Function
 	};
 
 	struct Type {
 		BasicType basicType;
 		TypeInfo typeInfo;
+
+		// Only used in user defined types and functions
+		std::string name{ "" };
 	};
 }

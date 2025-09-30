@@ -39,21 +39,22 @@ namespace Fractal {
 		ClassDefinition
 	};
 
-#define TYPE(x) NodeType getType() const { return x; }
+#define _TYPE(x) virtual NodeType getType() const { return x; }
+#define TYPE(x) virtual NodeType getType() const override { return x; }
 
 	// Base Classes
 	class Expression {
 	public:
 		virtual ~Expression() = default;
 		virtual void print() const {}
-		TYPE(NodeType::Expression)
+		_TYPE(NodeType::Expression)
 	};
 
 	class Statement {
 	public:
 		virtual ~Statement() = default;
 		virtual void print(uint8_t indent = 0) const {}
-		TYPE(NodeType::Statement)
+		_TYPE(NodeType::Statement)
 	};
 
 	// Derives from Statement in order to be able to create variables in local scope
@@ -386,14 +387,14 @@ namespace Fractal {
 
 	class Parameter {
 	public:
-		Parameter(const std::string& name, Type type, ExpressionPtr defaultValue) 
-			: name{ name }, type{ type }, defaultValue { std::move(defaultValue) } {}
+		Parameter(const Token& nameToken, Type type, ExpressionPtr defaultValue) 
+			: nameToken{ nameToken }, type{ type }, defaultValue { std::move(defaultValue) } {}
 		void print() {
-			std::cout << "parameter " << name;
+			std::cout << "parameter " << nameToken.value;
 			defaultValue->print();
 		}
 	public:
-		std::string name;
+		Token nameToken;
 		Type type;
 		ExpressionPtr defaultValue;
 	};
@@ -407,20 +408,20 @@ namespace Fractal {
 
 	class FunctionDefinition : public Definition {
 	public:
-		FunctionDefinition(const std::string& functionName, ParameterList& parameterList, Type returnType, StatementPtr functionBody)
-			: functionBody{ std::move(functionBody) }, parameterList{ std::move(parameterList) }, returnType{ returnType }, functionName{ functionName } {}
+		FunctionDefinition(const Token& nameToken, ParameterList& parameterList, Type returnType, StatementPtr functionBody)
+			: functionBody{ std::move(functionBody) }, parameterList{ std::move(parameterList) }, returnType{ returnType }, nameToken{ nameToken } {}
 		void print(uint8_t indent = 0) const override {
-			std::cout << "=>  function '" << functionName << "'(";
+			std::cout << "=>  function '" << nameToken.value << "'(";
 			for (auto& parameter : parameterList) {
-				std::cout << parameter->name << ", ";
+				std::cout << parameter->nameToken.value << ", ";
 			}
 			std::cout << "):\n";
 			functionBody->print();
 			std::cout << "!=> \n";
 		}
-		TYPE(NodeType::ReturnStatement)
+		TYPE(NodeType::FunctionDefinition)
 	public:
-		std::string functionName;
+		Token nameToken;
 		Type returnType;
 		ParameterList parameterList;
 		StatementPtr functionBody;
@@ -467,5 +468,13 @@ namespace Fractal {
 	public:
 		std::string className;
 		MemberList definitions;
+	};
+
+	struct ProgramFile {
+		DefinitionList definitions;
+
+		// Statements that are run when 'filename'() function is called from another file.
+		// In the case of the main project file, those statements act as the innards of the main() function that is called at execution
+		StatementList statements;
 	};
 }

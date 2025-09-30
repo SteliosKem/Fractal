@@ -47,18 +47,35 @@ namespace Fractal {
 		m_errorList.push_back(error);
 	}
 
+	void ErrorHandler::reportWarning(const Error& error) {
+		m_warningList.push_back(error);
+	}
+
 	void ErrorHandler::outputErrors() const {
 		for (const auto& error : m_errorList)
-			printError(error);
+			print(error, ErrorType::Error);
+	}
+
+	void ErrorHandler::outputWarnings() const {
+		for (const auto& warning : m_warningList)
+			print(warning, ErrorType::Warning);
 	}
 
 	bool ErrorHandler::hasErrors() const {
 		return !m_errorList.empty();
 	}
 
-	void ErrorHandler::printError(const Error& error) const {
-
-		std::cout << color(Color::Red) << color(Color::Underlined) << "Error" << color(Color::NotUnderlined) << ": " << color(Color::Default);
+	void ErrorHandler::print(const Error& error, ErrorType type) const {
+		std::string _color;
+		if (type == ErrorType::Error) {
+			_color = color(Color::Red);
+			std::cout << _color << color(Color::Underlined) << "Error" << color(Color::NotUnderlined) << ": " << color(Color::Default);
+		}
+		else if (type == ErrorType::Warning) {
+			_color = color(Color::LightBlue);
+			std::cout << _color << color(Color::Underlined) << "Warning" << color(Color::NotUnderlined) << ": " << color(Color::Default);
+		}
+		
 		std::cout << color(Color::White) << error.message << color(Color::Default) << '\n';
 
 		// Starting and ending indices of the error in the 'line' string
@@ -76,7 +93,7 @@ namespace Fractal {
 
 		// Will use this to compute the new starting index, after leading whitespace is removed
 		uint32_t startingIndexOffset = trimLeadingWhitespace(line);
-		std::cout << line.substr(0, startIndex - startingIndexOffset) << color(Color::Red) 
+		std::cout << line.substr(0, startIndex - startingIndexOffset) << _color
 			<< line.substr(startIndex - startingIndexOffset, (endIndex - startingIndexOffset) - (startIndex - startingIndexOffset) + 1)
 			<< color(Color::Default) << line.substr(endIndex - startingIndexOffset + 1) << '\n';
 
@@ -89,7 +106,7 @@ namespace Fractal {
 			else
 				std::cout << " ";
 		}
-		std::cout << color(Color::Red) << "^";
+		std::cout << _color << "^";
 		for (int32_t i = 0; i < int32_t(endIndex) - int32_t(startIndex + 1); i++)
 			std::cout << "~";
 		std::cout << color(Color::Default) << "\n";

@@ -7,3 +7,4 @@
 #include "Utilities.h"
 #include "Lexer/Lexer.h"
 #include "Parser/Parser.h"
+#include "Analysis/SemanticAnalyzer.h"

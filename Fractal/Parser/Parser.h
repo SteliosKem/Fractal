@@ -18,6 +18,7 @@ namespace Fractal {
 		bool parse(const TokenList& tokens);
 		const StatementList& statements() const;
 		const DefinitionList& definitions() const;
+		ProgramFile& program();
 	private:
 		// -- Utilities --
 		
@@ -36,6 +37,9 @@ namespace Fractal {
 
 		// Is able to return basic types, pointers, arrays etc
 		Type parseType();
+
+		void pushStatement(StatementPtr statement);
+		void pushDefinition(DefinitionPtr definition);
 
 		// -- EXPRESSIONS --
 
@@ -76,8 +80,7 @@ namespace Fractal {
 		Token* m_currentToken{ nullptr };
 		TokenList m_tokenList{};
 
-		StatementList m_statements{};
-		DefinitionList m_definitions{};
+		ProgramFile m_programFile{};
 
 		ErrorHandler* m_errorHandler{ nullptr };
 	};

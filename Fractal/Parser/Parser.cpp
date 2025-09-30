@@ -37,17 +37,29 @@ namespace Fractal {
 	}
 
 	const StatementList& Parser::statements() const {
-		return m_statements;
+		return m_programFile.statements;
 	}
 
 	const DefinitionList& Parser::definitions() const {
-		return m_definitions;
+		return m_programFile.definitions;
+	}
+
+	ProgramFile& Parser::program() {
+		return m_programFile;
 	}
 
 	void Parser::advance() {
 		m_currentIndex++;
 		if (m_currentIndex < m_tokenList.size())
 			m_currentToken = &m_tokenList[m_currentIndex];
+	}
+
+	void Parser::pushStatement(StatementPtr statement) {
+		m_programFile.statements.push_back(std::move(statement));
+	}
+
+	void Parser::pushDefinition(DefinitionPtr definition) {
+		m_programFile.definitions.push_back(std::move(definition));
 	}
 
 	void Parser::consume(TokenType type, const std::string& errorMessage) {
@@ -90,7 +102,11 @@ namespace Fractal {
 				return { type, TypeInfo::Array };
 			}
 			default: {
-				if (!isTypeToken(currentToken())) m_errorHandler->reportError({ "Expected type", currentToken().position });
+				if (!isTypeToken(currentToken())) {
+					Token* typeToken = m_currentToken;
+					advance();
+					return { BasicType::User, TypeInfo::UserDefined, typeToken->value };
+				}
 				BasicType type = getBasicType(currentToken());
 				advance();
 				return { type, TypeInfo::Fundamental };
@@ -340,10 +356,10 @@ namespace Fractal {
 
 		DefinitionPtr ptr;
 		while ((ptr = parseDefinition()) != nullptr)
-			m_definitions.push_back(std::move(ptr));
+			pushDefinition(std::move(ptr));
 
-		if (!(currentToken().type == LEFT_BRACKET && peek().type == BANG && peek(2).value == "define" && peek(3).value == "]"))
-			m_errorHandler->reportError({ "Expected end of definition set '[!define]'", currentToken().position });
+		if (!(currentToken().type == LESS && peek().type == BANG && peek(2).value == "define" && peek(3).type == GREATER))
+			m_errorHandler->reportError({ "Expected end of definition set '<!define>'", currentToken().position });
 		else {
 			advance();
 			advance();
@@ -380,10 +396,10 @@ namespace Fractal {
 		if (match(LEFT_PARENTHESIS)) {
 			advance();
 			while (!match(RIGHT_PARENTHESIS) && !match(SPECIAL_EOF)) {
-				Token* nameToken = m_currentToken;
+				Token* paramToken = m_currentToken;
 				consume(IDENTIFIER, "Expected parameter name");
 				consume(COLON, "Expected ':' after parameter name to specify the parameter type");
-				parameterList.push_back(std::make_unique<Parameter>(nameToken->value, parseType(), nullptr));
+				parameterList.push_back(std::make_unique<Parameter>(*paramToken, parseType(), nullptr));
 				if (match(COMMA)) advance();
 				else if (!match(RIGHT_PARENTHESIS)) break;
 			}
@@ -395,7 +411,7 @@ namespace Fractal {
 			returnType = parseType();
 		}
 
-		return std::make_unique<FunctionDefinition>(nameToken->value, parameterList, returnType, std::move(parseStatement()));
+		return std::make_unique<FunctionDefinition>(*nameToken, parameterList, returnType, std::move(parseStatement()));
 	}
 
 	DefinitionPtr Parser::definitionVariable(bool isGlobal) {
@@ -468,11 +484,11 @@ namespace Fractal {
 		m_tokenList = tokens;
 		advance();
 		while (currentToken().type != SPECIAL_EOF && !m_errorHandler->hasErrors()) {
-			if (currentToken().type == LEFT_BRACKET && peek().value == "define" && peek(2).type == RIGHT_BRACKET) {
+			if (currentToken().type == LESS && peek().value == "define" && peek(2).type == GREATER) {
 				handleDefinitions();
 				continue;
 			}
-			m_statements.push_back(parseStatement());
+			pushStatement(parseStatement());
 		}
 		return !m_errorHandler->hasErrors();
 	}
