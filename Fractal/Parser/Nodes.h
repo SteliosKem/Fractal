@@ -118,7 +118,7 @@ namespace Fractal {
 
 	class ArrayList : public Expression {
 	public:
-		ArrayList(const std::vector<ExpressionPtr>& elements, Type elementType) : elements{ elements }, elementType{ elementType } {}
+		ArrayList(const std::vector<ExpressionPtr>& elements, TypePtr elementType) : elements{ elements }, elementType{ elementType } {}
 		void print() const override { 
 			std::cout << "Array [";
 			for (auto& element : elements) {
@@ -130,7 +130,7 @@ namespace Fractal {
 		TYPE(NodeType::ArrayList)
 	public:
 		std::vector<ExpressionPtr> elements;
-		Type elementType;
+		TypePtr elementType;
 	};
 
 	class UnaryOperation : public Expression {
@@ -195,7 +195,7 @@ namespace Fractal {
 			std::cout << ')';
 		}
 
-		TYPE(NodeType::BinaryOperation)
+		TYPE(NodeType::Assignment)
 	public:
 		ExpressionPtr left;
 		ExpressionPtr right;
@@ -236,7 +236,7 @@ namespace Fractal {
 		ExpressionPtr expression;
 	};
 
-	using ArgumentPtr = std::unique_ptr<Argument>;
+	using ArgumentPtr = std::shared_ptr<Argument>;
 	using ArgumentList = std::vector<ArgumentPtr>;
 
 
@@ -357,7 +357,8 @@ namespace Fractal {
 
 	class ExpressionStatement : public Statement {
 	public:
-		ExpressionStatement(ExpressionPtr expression) : expression{ expression } {}
+		ExpressionStatement(ExpressionPtr expression, const Position& expressionPos)
+			: expression{ expression }, expressionPos{ expressionPos } {}
 		void print(uint8_t indent = 0) const override {
 			std::cout << "->  ";
 			expression->print();
@@ -366,6 +367,7 @@ namespace Fractal {
 		TYPE(NodeType::ExpressionStatement)
 	public:
 		ExpressionPtr expression;
+		Position expressionPos;
 	};
 
 	class ReturnStatement : public Statement {
@@ -387,7 +389,7 @@ namespace Fractal {
 
 	class Parameter {
 	public:
-		Parameter(const Token& nameToken, Type type, ExpressionPtr defaultValue) 
+		Parameter(const Token& nameToken, TypePtr type, ExpressionPtr defaultValue)
 			: nameToken{ nameToken }, type{ type }, defaultValue { defaultValue } {}
 		void print() {
 			std::cout << "parameter " << nameToken.value;
@@ -395,11 +397,11 @@ namespace Fractal {
 		}
 	public:
 		Token nameToken;
-		Type type;
+		TypePtr type;
 		ExpressionPtr defaultValue;
 	};
 
-	using ParameterPtr = std::unique_ptr<Parameter>;
+	using ParameterPtr = std::shared_ptr<Parameter>;
 	using ParameterList = std::vector<ParameterPtr>;
 
 	//
@@ -408,7 +410,7 @@ namespace Fractal {
 
 	class FunctionDefinition : public Definition {
 	public:
-		FunctionDefinition(const Token& nameToken, ParameterList& parameterList, Type returnType, StatementPtr functionBody)
+		FunctionDefinition(const Token& nameToken, ParameterList& parameterList, TypePtr returnType, StatementPtr functionBody)
 			: functionBody{ functionBody }, parameterList{ parameterList }, returnType{ returnType }, nameToken{ nameToken } {}
 		void print(uint8_t indent = 0) const override {
 			std::cout << "=>  function '" << nameToken.value << "'(";
@@ -422,24 +424,24 @@ namespace Fractal {
 		TYPE(NodeType::FunctionDefinition)
 	public:
 		Token nameToken;
-		Type returnType;
+		TypePtr returnType;
 		ParameterList parameterList;
 		StatementPtr functionBody;
 	};
 
 	class VariableDefinition : public Definition {
 	public:
-		VariableDefinition(const std::string& variableName, Type variableType, ExpressionPtr initializer, bool isConst, bool isGlobal)
-			: initializer{ initializer }, variableType{ variableType }, variableName{ variableName }, isConst{ isConst }, isGlobal{ isGlobal } {}
+		VariableDefinition(const Token& nameToken, TypePtr variableType, ExpressionPtr initializer, bool isConst, bool isGlobal)
+			: initializer{ initializer }, variableType{ variableType }, nameToken{ nameToken }, isConst{ isConst }, isGlobal{ isGlobal } {}
 		void print(uint8_t indent = 0) const override {
-			std::cout << "=>  " << (isGlobal ? "global " : "local ") << (isConst ? "const " : "") << "variable '" << variableName << "': ";
+			std::cout << "=>  " << (isGlobal ? "global " : "local ") << (isConst ? "const " : "") << "variable '" << nameToken.value << "': ";
 			if (initializer) initializer->print();
 			std::cout << '\n';
 		}
 		TYPE(NodeType::VariableDefinition)
 	public:
-		std::string variableName;
-		Type variableType;
+		Token nameToken;
+		TypePtr variableType;
 		ExpressionPtr initializer;
 		bool isConst;
 		bool isGlobal;

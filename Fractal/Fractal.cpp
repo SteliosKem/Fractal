@@ -24,6 +24,7 @@ int main()
 		statement->print();
 
 	if (!semanticAnalyzer.analyze(&parser.program())) {
+		errorHandler.outputWarnings();
 		errorHandler.outputErrors();
 		return EXIT_FAILURE;
 	}

@@ -3,6 +3,8 @@
 // Copyright (c) 2025-present, Stylianos Kementzetzidis
 
 #pragma once
+#include <variant>
+#include <memory>
 
 namespace Fractal {
 	enum class BasicType {
@@ -22,11 +24,20 @@ namespace Fractal {
 		Function
 	};
 
+	struct FunctionType;
+
 	struct Type {
-		BasicType basicType;
+		std::variant<BasicType, std::shared_ptr<Type>, std::shared_ptr<FunctionType>> innerType;
 		TypeInfo typeInfo;
 
 		// Only used in user defined types and functions
 		std::string name{ "" };
+	};
+
+	using TypePtr = std::shared_ptr<Type>;
+
+	struct FunctionType {
+		TypePtr returnType;
+		std::vector<TypePtr> parameterTypes;
 	};
 }

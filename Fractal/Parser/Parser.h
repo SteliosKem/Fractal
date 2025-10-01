@@ -36,7 +36,7 @@ namespace Fractal {
 		void consume(TokenType type, const std::string& errorMessage);
 
 		// Is able to return basic types, pointers, arrays etc
-		Type parseType();
+		TypePtr parseType();
 
 		void pushStatement(StatementPtr statement);
 		void pushDefinition(DefinitionPtr definition);

@@ -8,7 +8,11 @@
 #include "Parser/Nodes.h"
 
 namespace Fractal {
-	using SymbolTable = std::unordered_map<std::string, Type>;
+	struct SymbolEntry {
+		std::string name;
+		TypePtr type;
+	};
+	using SymbolTable = std::unordered_map<std::string, SymbolEntry>;
 	using GlobalNames = std::vector<std::string>;
 
 	class SemanticAnalyzer {
@@ -16,6 +20,9 @@ namespace Fractal {
 		SemanticAnalyzer(ErrorHandler* errorHandler) : m_errorHandler{ errorHandler } {}
 		bool analyze(ProgramFile* program);
 	private:
+		// -- UTILITY --
+		bool findNameGlobal(const Token& nameToken);
+
 		// -- DEFINITIONS --
 		
 		bool analyzeDefinition(DefinitionPtr definition);
@@ -27,12 +34,31 @@ namespace Fractal {
 		// -- STATEMENTS --
 		bool analyzeStatement(StatementPtr statement);
 		bool analyzeStatementExpression(StatementPtr statement);
+		bool analyzeStatementCompound(StatementPtr statement);
+		bool analyzeStatementReturn(StatementPtr statement);
+		bool analyzeStatementIf(StatementPtr statement);
+		bool analyzeStatementWhile(StatementPtr statement);
+		bool analyzeStatementLoop(StatementPtr statement);
+		bool analyzeStatementBreak(StatementPtr statement);
+		bool analyzeStatementContinue(StatementPtr statement);
 
 		// Expressions
 		bool analyzeExpression(ExpressionPtr expression);
+		bool analyzeExpressionInteger(ExpressionPtr expression);
+		bool analyzeExpressionString(ExpressionPtr expression);
+		bool analyzeExpressionCharacter(ExpressionPtr expression);
+		bool analyzeExpressionFloat(ExpressionPtr expression);
+		bool analyzeExpressionArray(ExpressionPtr expression);
+		bool analyzeExpressionBinary(ExpressionPtr expression);
+		bool analyzeExpressionUnary(ExpressionPtr expression);
+		bool analyzeExpressionIdentifier(ExpressionPtr expression);
+		bool analyzeExpressionCall(ExpressionPtr expression);
+		bool analyzeExpressionAssignment(ExpressionPtr expression);
+		bool analyzeExpressionMemberAccess(ExpressionPtr expression);
 	private:
 		ProgramFile* m_program{ nullptr };
-		GlobalNames m_globals;
+		SymbolTable m_globalTable;
+		std::vector<SymbolTable> m_localStack;
 		ErrorHandler* m_errorHandler{ nullptr };
 	};
 }

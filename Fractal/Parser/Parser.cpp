@@ -83,33 +83,29 @@ namespace Fractal {
 		return m_tokenList[m_tokenList.size() - 1];
 	}
 
-	Type Parser::parseType() {
+	TypePtr Parser::parseType() {
 		switch (currentToken().type) {
 			case LEFT_PARENTHESIS: {
 				advance();
-				if (!isTypeToken(currentToken())) m_errorHandler->reportError({ "Expected type after '('", currentToken().position});
-				BasicType type = getBasicType(currentToken());
-				advance();
+				TypePtr type = parseType();
 				consume(RIGHT_PARENTHESIS, "Expected ')'");
-				return {type, TypeInfo::Pointer};
+				return std::make_shared<Type>(type, TypeInfo::Pointer);
 			}
 			case LEFT_BRACKET: {
 				advance();
-				if (!isTypeToken(currentToken())) m_errorHandler->reportError({ "Expected type after '['", currentToken().position });
-				BasicType type = getBasicType(currentToken());
-				advance();
+				TypePtr type = parseType();
 				consume(RIGHT_BRACKET, "Expected ']'");
-				return { type, TypeInfo::Array };
+				return std::make_shared<Type>(type, TypeInfo::Array);
 			}
 			default: {
 				if (!isTypeToken(currentToken())) {
 					Token* typeToken = m_currentToken;
 					advance();
-					return { BasicType::User, TypeInfo::UserDefined, typeToken->value };
+					return std::make_shared<Type>(BasicType::User, TypeInfo::UserDefined, typeToken->value);
 				}
 				BasicType type = getBasicType(currentToken());
 				advance();
-				return { type, TypeInfo::Fundamental };
+				return std::make_shared<Type>(type, TypeInfo::Fundamental);
 			}
 		}
 	}
@@ -151,20 +147,20 @@ namespace Fractal {
 	ExpressionPtr Parser::expressionLiteral(const Token& token) {
 		switch (token.type) {
 		case TYPE_INTEGER:
-			return std::make_unique<IntegerLiteral>(stoi(token.value), token.position);
+			return std::make_shared<IntegerLiteral>(stoi(token.value), token.position);
 		case TYPE_FLOAT:
-			return std::make_unique<FloatLiteral>(stof(token.value), token.position);
+			return std::make_shared<FloatLiteral>(stof(token.value), token.position);
 		case STRING_LITERAL:
-			return std::make_unique<StringLiteral>(token.value, token.position);
+			return std::make_shared<StringLiteral>(token.value, token.position);
 		case CHARACTER_LITERAL:
-			return std::make_unique<CharacterLiteral>(*token.value.c_str(), token.position);
+			return std::make_shared<CharacterLiteral>(*token.value.c_str(), token.position);
 		}
 		
 	}
 
 	ExpressionPtr Parser::expressionUnary(const Token& token) {
 		ExpressionPtr expression = parseExpression(100); // Need high binding power
-		return std::make_unique<UnaryOperation>(token, expression);
+		return std::make_shared<UnaryOperation>(token, expression);
 	}
 
 	ExpressionPtr Parser::expressionGroup(const Token& token) {
@@ -181,7 +177,7 @@ namespace Fractal {
 	ExpressionPtr Parser::expressionIdentifier(const Token& token) {
 		if (match(LEFT_PARENTHESIS))
 			return expressionCall(token);
-		return std::make_unique<Identifier>(token);
+		return std::make_shared<Identifier>(token);
 	}
 
 	ExpressionPtr Parser::expressionCall(const Token& token) {
@@ -191,13 +187,13 @@ namespace Fractal {
 
 		// Parse arguments
 		while (!match(RIGHT_PARENTHESIS) && !match(SPECIAL_EOF)) {
-			argList.push_back(std::make_unique<Argument>("", parseExpression()));
+			argList.push_back(std::make_shared<Argument>("", parseExpression()));
 			if (match(COMMA)) advance();
 			else if (!match(RIGHT_PARENTHESIS)) break;
 		}
 
 		consume(RIGHT_PARENTHESIS, "Expected ')'");
-		return std::make_unique<Call>(token, argList);
+		return std::make_shared<Call>(token, argList);
 	}
 
 	ExpressionPtr Parser::expressionArray() {
@@ -209,7 +205,7 @@ namespace Fractal {
 		}
 
 		consume(RIGHT_BRACKET, "Expected ']'");
-		return std::make_unique<ArrayList>(expressions, Type{ BasicType::Null, TypeInfo::Fundamental });
+		return std::make_shared<ArrayList>(expressions, std::make_shared<Type>(BasicType::Null, TypeInfo::Fundamental));
 	}
 
 	ExpressionPtr Parser::led(const Token& token, ExpressionPtr left) {
@@ -226,18 +222,18 @@ namespace Fractal {
 			case SLASH: {
 				BindingPower bindingPower = tokenBindingPower(token);
 				ExpressionPtr right = parseExpression(bindingPower);
-				return std::make_unique<BinaryOperation>(left, token, right);
+				return std::make_shared<BinaryOperation>(left, token, right);
 			}
 			case EQUAL: {
 				BindingPower bindingPower = tokenBindingPower(token);
 				ExpressionPtr right = parseExpression(bindingPower);
-				return std::make_unique<Assignment>(left, token, right);
+				return std::make_shared<Assignment>(left, token, right);
 			}
 			case ARROW:
 			case DOT: {
 				BindingPower bindingPower = tokenBindingPower(token);
 				ExpressionPtr right = parseExpression(bindingPower);
-				return std::make_unique<MemberAccess>(left, token, right);
+				return std::make_shared<MemberAccess>(left, token, right);
 			}
 			default:
 				return nullptr;
@@ -275,21 +271,23 @@ namespace Fractal {
 
 	StatementPtr Parser::statementNull() {
 		advance();
-		return std::make_unique<NullStatement>();
+		return std::make_shared<NullStatement>();
 	}
 
 	StatementPtr Parser::statementReturn() {
 		Token* token = m_currentToken;
 		advance();
-		StatementPtr statement = std::make_unique<ReturnStatement>(parseExpression(), *token);
+		StatementPtr statement = std::make_shared<ReturnStatement>(parseExpression(), *token);
 		CONSUME_SEMICOLON();
 		return statement;
 	}
 
 	StatementPtr Parser::statementExpression() {
-		StatementPtr statement = std::make_unique<ExpressionStatement>(parseExpression());
+		Position pos = currentToken().position;
+		ExpressionPtr expression = parseExpression();
+		pos.endIndex = currentToken().position.endIndex;
 		CONSUME_SEMICOLON();
-		return statement;
+		return std::make_shared<ExpressionStatement>(expression, pos);
 	}
 
 	StatementPtr Parser::statementCompound() {
@@ -302,7 +300,7 @@ namespace Fractal {
 			statements.push_back(parseStatement());
 
 		consume(RIGHT_BRACE, "Expected '}'");
-		return std::make_unique<CompoundStatement>(statements);
+		return std::make_shared<CompoundStatement>(statements);
 	}
 
 	StatementPtr Parser::statementIf() {
@@ -315,13 +313,13 @@ namespace Fractal {
 			advance();
 			elseBody = parseStatement();
 		}
-		return std::make_unique<IfStatement>(condition, ifBody, elseBody);
+		return std::make_shared<IfStatement>(condition, ifBody, elseBody);
 	}
 
 	StatementPtr Parser::statementLoop() {
 		advance();
 		StatementPtr loopBody = parseStatement();
-		return std::make_unique<LoopStatement>(loopBody);
+		return std::make_shared<LoopStatement>(loopBody);
 	}
 
 	StatementPtr Parser::statementWhile() {
@@ -329,21 +327,21 @@ namespace Fractal {
 		ExpressionPtr condition = parseExpression();
 		CONSUME_DOUBLE_ARROW();
 		StatementPtr loopBody = parseStatement();
-		return std::make_unique<WhileStatement>(condition, loopBody);
+		return std::make_shared<WhileStatement>(condition, loopBody);
 	}
 
 	StatementPtr Parser::statementBreak() {
 		Token* token = m_currentToken;
 		advance();
 		CONSUME_SEMICOLON();
-		return std::make_unique<BreakStatement>(*token);
+		return std::make_shared<BreakStatement>(*token);
 	}
 
 	StatementPtr Parser::statementContinue() {
 		Token* token = m_currentToken;
 		advance();
 		CONSUME_SEMICOLON();
-		return std::make_unique<ContinueStatement>(*token);
+		return std::make_shared<ContinueStatement>(*token);
 	}
 
 	// -- DEFINITIONS --
@@ -387,7 +385,7 @@ namespace Fractal {
 		// Skip 'fn'
 		advance();
 
-		Type returnType = { BasicType::Null, TypeInfo::Fundamental };
+		TypePtr returnType = std::make_shared<Type>(BasicType::Null, TypeInfo::Fundamental);
 
 		Token* nameToken = m_currentToken;
 		consume(IDENTIFIER, "Expected a function name after 'fn'");
@@ -399,7 +397,7 @@ namespace Fractal {
 				Token* paramToken = m_currentToken;
 				consume(IDENTIFIER, "Expected parameter name");
 				consume(COLON, "Expected ':' after parameter name to specify the parameter type");
-				parameterList.push_back(std::make_unique<Parameter>(*paramToken, parseType(), nullptr));
+				parameterList.push_back(std::make_shared<Parameter>(*paramToken, parseType(), nullptr));
 				if (match(COMMA)) advance();
 				else if (!match(RIGHT_PARENTHESIS)) break;
 			}
@@ -411,7 +409,7 @@ namespace Fractal {
 			returnType = parseType();
 		}
 
-		return std::make_unique<FunctionDefinition>(*nameToken, parameterList, returnType, parseStatement());
+		return std::make_shared<FunctionDefinition>(*nameToken, parameterList, returnType, parseStatement());
 	}
 
 	DefinitionPtr Parser::definitionVariable(bool isGlobal) {
@@ -420,7 +418,7 @@ namespace Fractal {
 			isConst = true;
 		advance();
 
-		Type variableType = { BasicType::Null, TypeInfo::Fundamental };
+		TypePtr variableType = std::make_shared<Type>(BasicType::Null, TypeInfo::Fundamental);
 		ExpressionPtr initializer = nullptr;
 		Token* nameToken = m_currentToken;
 
@@ -441,7 +439,7 @@ namespace Fractal {
 
 		CONSUME_SEMICOLON();
 
-		return std::make_unique<VariableDefinition>(nameToken->value, variableType, initializer, isConst, isGlobal);
+		return std::make_shared<VariableDefinition>(*nameToken, variableType, initializer, isConst, isGlobal);
 	}
 
 	DefinitionPtr Parser::definitionClass() {
@@ -475,7 +473,7 @@ namespace Fractal {
 
 		consume(RIGHT_BRACE, "Expected '}'");
 
-		return std::make_unique<ClassDefinition>(nameToken->value, classMembers);
+		return std::make_shared<ClassDefinition>(nameToken->value, classMembers);
 	}
 
 	bool Parser::parse(const TokenList& tokens) {
