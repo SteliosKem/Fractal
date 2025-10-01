@@ -9,14 +9,30 @@ namespace Fractal {
 		if (m_globalTable.find(nameToken.value) != m_globalTable.end()) return true;
 	}
 
+	int32_t SemanticAnalyzer::findNameLocal(const Token& nameToken) {
+		for (int32_t i = m_localStack.size() - 1; i >= 0; i--) {
+			if (m_localStack[i].find(nameToken.value) != m_localStack[i].end()) return i;
+		}
+		return -1;
+	}
+
+	std::string SemanticAnalyzer::createUnique(const std::string& name) {
+		static uint64_t index = 0;
+		return name + "." + std::to_string(index++);
+	}
+
 	bool SemanticAnalyzer::analyze(ProgramFile* program) {
 		m_program = program;
+		m_localStack = {};
+		m_globalTable = {};
 
 		for (auto& definition : m_program->definitions)
 			if (!analyzeDefinition(definition)) return false;
 
+		pushScope();
 		for (auto& statement : m_program->statements)
 			if (!analyzeStatement(statement)) return false;
+		popScope();
 
 		return true;
 	}
@@ -29,8 +45,22 @@ namespace Fractal {
 		}
 	}
 
+	void SemanticAnalyzer::pushScope() {
+		m_localStack.push_back({});
+	}
+
+	void SemanticAnalyzer::popScope() {
+		m_localStack.pop_back();
+	}
+
+	SymbolTable& SemanticAnalyzer::topScope() {
+		return m_localStack[m_localStack.size() - 1];
+	}
+
 	bool SemanticAnalyzer::analyzeDefinitionFunction(DefinitionPtr definition) {
 		std::shared_ptr<FunctionDefinition> functionDefinition = static_pointer_cast<FunctionDefinition>(definition);
+
+		pushScope();
 
 		if (findNameGlobal(functionDefinition->nameToken)) { 
 			m_errorHandler->reportError({ "Function '" + functionDefinition->nameToken.value + "' is already defined", functionDefinition->nameToken.position });
@@ -48,6 +78,9 @@ namespace Fractal {
 			std::make_shared<Type>(std::make_shared<FunctionType>(functionDefinition->returnType, parameterTypes), TypeInfo::Function)};
 
 		if (!analyzeStatement(functionDefinition->functionBody)) return false;
+
+		popScope();
+		return true;
 	}
 
 	bool SemanticAnalyzer::analyzeParameters(const ParameterList& paramList) {
@@ -60,6 +93,7 @@ namespace Fractal {
 				return false;
 			}
 			paramListCheck.push_back(parameter->nameToken.value);
+			topScope()[parameter->nameToken.value] = {createUnique(parameter->nameToken.value), parameter->type};
 		}
 		return true;
 	}
@@ -67,12 +101,23 @@ namespace Fractal {
 	bool SemanticAnalyzer::analyzeDefinitionVariable(DefinitionPtr definition) { 
 		std::shared_ptr<VariableDefinition> variableDefinition = static_pointer_cast<VariableDefinition>(definition);
 
-		if (findNameGlobal(variableDefinition->nameToken)) {
-			m_errorHandler->reportError({ "Variable '" + variableDefinition->nameToken.value + "' is already defined", variableDefinition->nameToken.position });
-			return false;
-		}
+		if (variableDefinition->isGlobal) {
+			if (findNameGlobal(variableDefinition->nameToken)) {
+				m_errorHandler->reportError({ "Variable '" + variableDefinition->nameToken.value + "' is already defined globally", variableDefinition->nameToken.position });
+				return false;
+			}
 
-		m_globalTable[variableDefinition->nameToken.value] = SymbolEntry{ variableDefinition->nameToken.value, variableDefinition->variableType };
+			m_globalTable[variableDefinition->nameToken.value] = SymbolEntry{ variableDefinition->nameToken.value, variableDefinition->variableType };
+		}
+		else {
+			int32_t index = findNameLocal(variableDefinition->nameToken);
+			if (index > -1) {
+				m_errorHandler->reportError({ "Variable '" + variableDefinition->nameToken.value + "' is already defined in local scope", variableDefinition->nameToken.position });
+				return false;
+			}
+
+			topScope()[variableDefinition->nameToken.value] = SymbolEntry{ variableDefinition->nameToken.value, variableDefinition->variableType };
+		}
 
 		if (variableDefinition->initializer && !analyzeExpression(variableDefinition->initializer)) return false;
 	}
@@ -99,6 +144,7 @@ namespace Fractal {
 			case NodeType::WhileStatement: return analyzeStatementWhile(statement);
 			case NodeType::BreakStatement: return analyzeStatementBreak(statement);
 			case NodeType::ContinueStatement: return analyzeStatementContinue(statement);
+			case NodeType::VariableDefinition: return analyzeDefinitionVariable(static_pointer_cast<Definition>(statement));
 			case NodeType::NullStatement: return true;
 		}
 	}
@@ -119,11 +165,13 @@ namespace Fractal {
 	}
 
 	bool SemanticAnalyzer::analyzeStatementCompound(StatementPtr statement) {
+		pushScope();
 		std::shared_ptr<CompoundStatement> compoundStatement = static_pointer_cast<CompoundStatement>(statement);
 
 		for (auto ptr : compoundStatement->statements)
 			if (!analyzeStatement(ptr)) return false;
 
+		popScope();
 		return true;
 	}
 
@@ -223,6 +271,11 @@ namespace Fractal {
 	bool SemanticAnalyzer::analyzeExpressionIdentifier(ExpressionPtr expression) {
 		std::shared_ptr<Identifier> identifier = static_pointer_cast<Identifier>(expression);
 
+		int32_t index = findNameLocal(identifier->idToken);
+		if (index > -1) {
+			identifier->idToken.value = m_localStack[index][identifier->idToken.value].name;
+			return true;
+		}
 		if (!findNameGlobal(identifier->idToken)) {
 			m_errorHandler->reportError({ "Undefined name '" + identifier->idToken.value + "'", identifier->idToken.position});
 			return false;
@@ -234,8 +287,11 @@ namespace Fractal {
 	bool SemanticAnalyzer::analyzeExpressionCall(ExpressionPtr expression) { 
 		std::shared_ptr<Call> call = static_pointer_cast<Call>(expression);
 
-		if (!findNameGlobal(call->funcToken)) {
-			m_errorHandler->reportError({ "Undefined function '" + call->funcToken.value + "'", call->funcToken.position });
+		int32_t index = findNameLocal(call->funcToken);
+		if (index > -1)
+			call->funcToken.value = m_localStack[index][call->funcToken.value].name;
+		else if (!findNameGlobal(call->funcToken)) {
+			m_errorHandler->reportError({ "Undefined name '" + call->funcToken.value + "'", call->funcToken.position });
 			return false;
 		}
 		for (auto arg : call->argumentList)

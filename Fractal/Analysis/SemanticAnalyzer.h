@@ -23,6 +23,14 @@ namespace Fractal {
 		// -- UTILITY --
 		bool findNameGlobal(const Token& nameToken);
 
+		// Return the index of the symbol in the local stack if it exists, if it does not then return -1
+		int32_t findNameLocal(const Token& nameToken);
+
+		void pushScope();
+		void popScope();
+		SymbolTable& topScope();
+		std::string createUnique(const std::string& name);
+
 		// -- DEFINITIONS --
 		
 		bool analyzeDefinition(DefinitionPtr definition);
