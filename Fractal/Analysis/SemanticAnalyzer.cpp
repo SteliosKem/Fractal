@@ -21,6 +21,11 @@ namespace Fractal {
 		return name + "." + std::to_string(index++);
 	}
 
+	uint8_t uniqueLoop() {
+		static uint8_t index = 0;
+		return index++;
+	}
+
 	bool SemanticAnalyzer::analyze(ProgramFile* program) {
 		m_program = program;
 		m_localStack = {};
@@ -196,23 +201,44 @@ namespace Fractal {
 	bool SemanticAnalyzer::analyzeStatementWhile(StatementPtr statement) {
 		std::shared_ptr<WhileStatement> whileStatement = static_pointer_cast<WhileStatement>(statement);
 
+		m_loopStack.push_back(uniqueLoop());
+
 		if (!analyzeExpression(whileStatement->condition)) return false;
 		if (!analyzeStatement(whileStatement->loopBody)) return false;
+
+		m_loopStack.pop_back();
 
 		return true;
 	}
 
 	bool SemanticAnalyzer::analyzeStatementLoop(StatementPtr statement) {
 		std::shared_ptr<LoopStatement> loopStatement = static_pointer_cast<LoopStatement>(statement);
+		m_loopStack.push_back(uniqueLoop());
 
-		return analyzeStatement(loopStatement->loopBody);
+		if (!analyzeStatement(loopStatement->loopBody)) return false;
+
+		m_loopStack.pop_back();
+
+		return true;
 	}
 
 	bool SemanticAnalyzer::analyzeStatementBreak(StatementPtr statement) {
+		std::shared_ptr<BreakStatement> breakStatement = static_pointer_cast<BreakStatement>(statement);
+		if (m_loopStack.size() == 0) {
+			m_errorHandler->reportError({"Cannot use break outside of a loop", breakStatement->token.position});
+			return false;
+		}
+		breakStatement->loopIndex = m_loopStack[m_loopStack.size() - 1];
 		return true;
 	}
 
 	bool SemanticAnalyzer::analyzeStatementContinue(StatementPtr statement) {
+		std::shared_ptr<ContinueStatement> continueStatement = static_pointer_cast<ContinueStatement>(statement);
+		if (m_loopStack.size() == 0) {
+			m_errorHandler->reportError({ "Cannot use continue outside of a loop", continueStatement->token.position });
+			return false;
+		}
+		continueStatement->loopIndex = m_loopStack[m_loopStack.size() - 1];
 		return true;
 	}
 

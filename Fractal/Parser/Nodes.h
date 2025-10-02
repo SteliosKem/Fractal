@@ -342,6 +342,7 @@ namespace Fractal {
 		TYPE(NodeType::BreakStatement)
 	public:
 		Token token;
+		uint8_t loopIndex{ 0 };
 	};
 
 	class ContinueStatement : public Statement {
@@ -353,6 +354,7 @@ namespace Fractal {
 		TYPE(NodeType::ContinueStatement)
 	public:
 		Token token;
+		uint8_t loopIndex{ 0 };
 	};
 
 	class ExpressionStatement : public Statement {

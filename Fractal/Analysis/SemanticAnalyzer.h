@@ -67,6 +67,9 @@ namespace Fractal {
 		ProgramFile* m_program{ nullptr };
 		SymbolTable m_globalTable;
 		std::vector<SymbolTable> m_localStack;
+
+		std::vector<uint8_t> m_loopStack;
+
 		ErrorHandler* m_errorHandler{ nullptr };
 	};
 }
