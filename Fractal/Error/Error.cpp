@@ -94,8 +94,8 @@ namespace Fractal {
 		// Will use this to compute the new starting index, after leading whitespace is removed
 		uint32_t startingIndexOffset = trimLeadingWhitespace(line);
 		std::cout << line.substr(0, startIndex - startingIndexOffset) << _color
-			<< line.substr(startIndex - startingIndexOffset, (endIndex - startingIndexOffset) - (startIndex - startingIndexOffset) + 1)
-			<< color(Color::Default) << line.substr(endIndex - startingIndexOffset + 1) << '\n';
+			<< line.substr(startIndex - startingIndexOffset, (endIndex - startingIndexOffset) - (startIndex - startingIndexOffset))
+			<< color(Color::Default) << line.substr(endIndex - startingIndexOffset) << '\n';
 
 		for (size_t i = 0; i < paddingString.size(); i++)
 			std::cout << " ";

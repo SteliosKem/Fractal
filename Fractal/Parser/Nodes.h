@@ -47,6 +47,7 @@ namespace Fractal {
 	public:
 		virtual ~Expression() = default;
 		virtual void print() const {}
+		TypePtr expressionType;
 		_TYPE(NodeType::Expression)
 	};
 
@@ -100,7 +101,7 @@ namespace Fractal {
 	public:
 		StringLiteral(const std::string& value, const Position& position) : value{ value }, position{ position } {}
 		void print() const override { std::cout << '"' << value << '"'; }
-		TYPE(NodeType::FloatLiteral)
+		TYPE(NodeType::StringLiteral)
 	public:
 		std::string value;
 		Position position;
@@ -108,28 +109,33 @@ namespace Fractal {
 
 	class CharacterLiteral : public Expression {
 	public:
-		CharacterLiteral(char value, const Position& position) : value{ value }, position{ position } {}
+		CharacterLiteral(std::string value, const Position& position) : value{ value }, position{ position } {}
 		void print() const override { std::cout << "'" << value << "'"; }
-		TYPE(NodeType::FloatLiteral)
+		TYPE(NodeType::CharacterLiteral)
 	public:
-		char value;
+		std::string value;
 		Position position;
+	};
+
+	struct ArrayElement {
+		ExpressionPtr expression;
+		Position pos;
 	};
 
 	class ArrayList : public Expression {
 	public:
-		ArrayList(const std::vector<ExpressionPtr>& elements, TypePtr elementType) : elements{ elements }, elementType{ elementType } {}
+		ArrayList(const std::vector<ArrayElement>& elements) : elements{ elements }, elementType{ elementType } {}
 		void print() const override { 
 			std::cout << "Array [";
 			for (auto& element : elements) {
-				element->print();
+				element.expression->print();
 				std::cout << ", ";
 			}
 			std::cout << ']';
 		}
 		TYPE(NodeType::ArrayList)
 	public:
-		std::vector<ExpressionPtr> elements;
+		std::vector<ArrayElement> elements;
 		TypePtr elementType;
 	};
 

@@ -79,11 +79,12 @@ namespace Fractal {
 			parameterTypes.push_back(param->type);
 		}
 
-		m_globalTable[functionDefinition->nameToken.value] = SymbolEntry{ functionDefinition->nameToken.value,
-			std::make_shared<Type>(std::make_shared<FunctionType>(functionDefinition->returnType, parameterTypes), TypeInfo::Function)};
+		m_currentFunction = std::make_shared<FunctionType>(functionDefinition->returnType, parameterTypes);
+		m_globalTable[functionDefinition->nameToken.value] = SymbolEntry{ functionDefinition->nameToken.value, m_currentFunction };
 
 		if (!analyzeStatement(functionDefinition->functionBody)) return false;
 
+		m_currentFunction = nullptr;
 		popScope();
 		return true;
 	}
@@ -127,7 +128,11 @@ namespace Fractal {
 		if (variableDefinition->initializer && !analyzeExpression(variableDefinition->initializer)) return false;
 	}
 
-	bool SemanticAnalyzer::analyzeDefinitionClass(DefinitionPtr definition) { return true; }
+	bool SemanticAnalyzer::analyzeDefinitionClass(DefinitionPtr definition) { 
+		std::shared_ptr<ClassDefinition> classDef = static_pointer_cast<ClassDefinition>(definition);
+		m_userDefinedTypes.push_back(classDef->className);
+		return true;
+	}
 
 	// -- STATEMENTS --
 	bool SemanticAnalyzer::analyzeStatement(StatementPtr statement) {
@@ -182,8 +187,16 @@ namespace Fractal {
 
 	bool SemanticAnalyzer::analyzeStatementReturn(StatementPtr statement) {
 		std::shared_ptr<ReturnStatement> returnStatement = static_pointer_cast<ReturnStatement>(statement);
+		if (!m_currentFunction) {
+			m_errorHandler->reportError({"Cannot use return outside of a function body", returnStatement->token.position});
+			return false;
+		}
 
-		return analyzeExpression(returnStatement->expression);
+		if (!analyzeExpression(returnStatement->expression)) return false;
+		if (!sameType(returnStatement->expression->expressionType, m_currentFunction->returnType)) {
+			m_errorHandler->reportError({"Cannot return type '" + returnStatement->expression->expressionType->typeName() 
+				+ "' from a function which returns type '" + m_currentFunction->returnType->typeName() + "'", returnStatement->token.position});
+		}
 	}
 
 	bool SemanticAnalyzer::analyzeStatementIf(StatementPtr statement) {
@@ -260,38 +273,71 @@ namespace Fractal {
 	}
 
 	bool SemanticAnalyzer::analyzeExpressionInteger(ExpressionPtr expression) {
+		expression->expressionType = std::make_shared<FundamentalType>(BasicType::I32);
 		return true;
 	}
 
 	bool SemanticAnalyzer::analyzeExpressionString(ExpressionPtr expression) {
+		expression->expressionType = std::make_shared<FundamentalType>(BasicType::String);
 		return true;
 	}
 
 	bool SemanticAnalyzer::analyzeExpressionCharacter(ExpressionPtr expression) {
+		expression->expressionType = std::make_shared<FundamentalType>(BasicType::Character);
 		return true;
 	}
 
 	bool SemanticAnalyzer::analyzeExpressionFloat(ExpressionPtr expression) {
+		expression->expressionType = std::make_shared<FundamentalType>(BasicType::F32);
 		return true;
 	}
 
 	bool SemanticAnalyzer::analyzeExpressionArray(ExpressionPtr expression) {
 		std::shared_ptr<ArrayList> arraylist = static_pointer_cast<ArrayList>(expression);
 
-		for (auto ptr : arraylist->elements)
-			if(!analyzeExpression(ptr)) return false;
+		TypePtr firstType;
+
+		if (arraylist->elements.size() > 0) {
+			ArrayElement first = arraylist->elements[0];
+			if (!analyzeExpression(first.expression)) return false;
+			firstType = first.expression->expressionType;
+		}
+
+		for (size_t i = 1; i < arraylist->elements.size(); i++) {
+			if (!analyzeExpression(arraylist->elements[i].expression)) return false;
+			if (!sameType(arraylist->elements[i].expression->expressionType, firstType)) {
+				// Have to add element position for errors
+				m_errorHandler->reportError({ "Cannot insert element of type '" + arraylist->elements[i].expression->expressionType->typeName()
+					+ "' to array which holds elements of type '" + firstType->typeName() + "'", arraylist->elements[i].pos });
+				return false;
+			}
+		}
+
+		arraylist->expressionType = std::make_shared<ArrayType>(firstType);
+		arraylist->elementType = firstType;
+		return true;
 	}
 
 	bool SemanticAnalyzer::analyzeExpressionBinary(ExpressionPtr expression) {
 		std::shared_ptr<BinaryOperation> binary = static_pointer_cast<BinaryOperation>(expression);
 
 		if (!analyzeExpression(binary->left) || !analyzeExpression(binary->right)) return false;
+		if (!sameType(binary->left->expressionType, binary->right->expressionType)) {
+			m_errorHandler->reportError({ "Cannot operate between '" + binary->right->expressionType->typeName()
+				+ "' and '" + binary->left->expressionType->typeName() + "' types", binary->operatorToken.position});
+			return false;
+		}
+
+		binary->expressionType = binary->left->expressionType;
+		return true;
 	}
 
 	bool SemanticAnalyzer::analyzeExpressionUnary(ExpressionPtr expression) {
 		std::shared_ptr<UnaryOperation> unary = static_pointer_cast<UnaryOperation>(expression);
+		if (!analyzeExpression(unary->expression)) return false;
+		unary->expressionType = unary->expression->expressionType;
 
-		return analyzeExpression(unary->expression);
+		return true;
 	}
 
 	bool SemanticAnalyzer::analyzeExpressionIdentifier(ExpressionPtr expression) {
@@ -300,30 +346,72 @@ namespace Fractal {
 		int32_t index = findNameLocal(identifier->idToken);
 		if (index > -1) {
 			identifier->idToken.value = m_localStack[index][identifier->idToken.value].name;
+			identifier->expressionType = m_localStack[index][identifier->idToken.value].type;
 			return true;
 		}
 		if (!findNameGlobal(identifier->idToken)) {
 			m_errorHandler->reportError({ "Undefined name '" + identifier->idToken.value + "'", identifier->idToken.position});
 			return false;
 		}
+		identifier->expressionType = m_globalTable[identifier->idToken.value].type;
 
+		return true;
+	}
+
+	bool SemanticAnalyzer::compareArgsToParams(const std::vector<TypePtr>& paramList, std::shared_ptr<Call> call) {
+		const ArgumentList& argList = call->argumentList;
+		if (paramList.size() != argList.size()) {
+			m_errorHandler->reportError(
+				{"Expected " + std::to_string(paramList.size()) + " arguments in '" + call->funcToken.value + "' call, but got " + std::to_string(argList.size())
+				, call->funcToken.position});
+			return false;
+		}
+		for (size_t i = 0; i < paramList.size(); i++) {
+			if (!sameType(paramList[i], argList[i]->expression->expressionType)) {
+				m_errorHandler->reportError({ "Expected argument type '" + paramList[i]->typeName() 
+					+ "', got '" + argList[i]->expression->expressionType->typeName(), call->funcToken.position});
+				return false;
+			}
+		}
 		return true;
 	}
 
 	bool SemanticAnalyzer::analyzeExpressionCall(ExpressionPtr expression) { 
 		std::shared_ptr<Call> call = static_pointer_cast<Call>(expression);
 
+		TypePtr type;
+
+		std::shared_ptr<FunctionType> funcType;
+
 		int32_t index = findNameLocal(call->funcToken);
-		if (index > -1)
-			call->funcToken.value = m_localStack[index][call->funcToken.value].name;
+		if (index > -1) {
+			SymbolEntry& symbol = m_localStack[index][call->funcToken.value];
+			funcType = static_pointer_cast<FunctionType>(symbol.type);
+			if (symbol.type->typeInfo() != TypeInfo::Function) {
+				m_errorHandler->reportError({ "Cannot call non-function names", call->funcToken.position});
+				return false;
+			}
+			call->funcToken.value = symbol.name;
+			call->expressionType = funcType->returnType;
+		}
 		else if (!findNameGlobal(call->funcToken)) {
 			m_errorHandler->reportError({ "Undefined name '" + call->funcToken.value + "'", call->funcToken.position });
 			return false;
 		}
+		else {
+			SymbolEntry& symbol = m_globalTable[call->funcToken.value];
+			funcType = static_pointer_cast<FunctionType>(symbol.type);
+			if (symbol.type->typeInfo() != TypeInfo::Function) {
+				m_errorHandler->reportError({ "Cannot call non-function names", call->funcToken.position });
+				return false;
+			}
+			call->expressionType = static_pointer_cast<FunctionType>(symbol.type)->returnType;
+		}
+
 		for (auto arg : call->argumentList)
 			if (!analyzeExpression(arg->expression)) return false;
 
-		return true;
+		return compareArgsToParams(funcType->parameterTypes, call);
 	}
 
 	bool SemanticAnalyzer::analyzeExpressionAssignment(ExpressionPtr expression) { 
@@ -340,6 +428,13 @@ namespace Fractal {
 		}
 
 		if (!analyzeExpression(assignment->left) || !analyzeExpression(assignment->right)) return false;
+		if (!sameType(assignment->left->expressionType, assignment->right->expressionType)) {
+			m_errorHandler->reportError({ "Cannot assign expression of type '" + assignment->right->expressionType->typeName()
+				+ "' to variable of type '" + assignment->left->expressionType->typeName() + "'", assignment->operatorToken.position});
+			return false;
+		}
+
+		assignment->expressionType = assignment->left->expressionType;
 
 		return true;
 	}

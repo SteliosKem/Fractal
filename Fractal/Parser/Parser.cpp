@@ -89,23 +89,23 @@ namespace Fractal {
 				advance();
 				TypePtr type = parseType();
 				consume(RIGHT_PARENTHESIS, "Expected ')'");
-				return std::make_shared<Type>(type, TypeInfo::Pointer);
+				return std::make_shared<PointerType>(type);
 			}
 			case LEFT_BRACKET: {
 				advance();
 				TypePtr type = parseType();
 				consume(RIGHT_BRACKET, "Expected ']'");
-				return std::make_shared<Type>(type, TypeInfo::Array);
+				return std::make_shared<ArrayType>(type);
 			}
 			default: {
 				if (!isTypeToken(currentToken())) {
 					Token* typeToken = m_currentToken;
 					advance();
-					return std::make_shared<Type>(BasicType::User, TypeInfo::UserDefined, typeToken->value);
+					return std::make_shared<UserDefinedType>(typeToken->value);
 				}
 				BasicType type = getBasicType(currentToken());
 				advance();
-				return std::make_shared<Type>(type, TypeInfo::Fundamental);
+				return std::make_shared<FundamentalType>(type);
 			}
 		}
 	}
@@ -153,7 +153,7 @@ namespace Fractal {
 		case STRING_LITERAL:
 			return std::make_shared<StringLiteral>(token.value, token.position);
 		case CHARACTER_LITERAL:
-			return std::make_shared<CharacterLiteral>(*token.value.c_str(), token.position);
+			return std::make_shared<CharacterLiteral>(token.value, token.position);
 		}
 		
 	}
@@ -197,15 +197,19 @@ namespace Fractal {
 	}
 
 	ExpressionPtr Parser::expressionArray() {
-		std::vector<ExpressionPtr> expressions;
+		std::vector<ArrayElement> expressions;
 		while (!match(RIGHT_BRACKET) && !match(SPECIAL_EOF)) {
-			expressions.push_back(parseExpression());
+			Position first = currentToken().position;
+			ExpressionPtr expr = parseExpression();
+			Position second = first;
+			second.endIndex = currentToken().position.endIndex;
+			expressions.push_back({ expr, second});
 			if (match(COMMA)) advance();
 			else if (!match(RIGHT_BRACKET)) break;
 		}
 
 		consume(RIGHT_BRACKET, "Expected ']'");
-		return std::make_shared<ArrayList>(expressions, std::make_shared<Type>(BasicType::Null, TypeInfo::Fundamental));
+		return std::make_shared<ArrayList>(expressions);
 	}
 
 	ExpressionPtr Parser::led(const Token& token, ExpressionPtr left) {
@@ -385,7 +389,7 @@ namespace Fractal {
 		// Skip 'fn'
 		advance();
 
-		TypePtr returnType = std::make_shared<Type>(BasicType::Null, TypeInfo::Fundamental);
+		TypePtr returnType = std::make_shared<FundamentalType>(BasicType::Null);
 
 		Token* nameToken = m_currentToken;
 		consume(IDENTIFIER, "Expected a function name after 'fn'");
@@ -418,7 +422,7 @@ namespace Fractal {
 			isConst = true;
 		advance();
 
-		TypePtr variableType = std::make_shared<Type>(BasicType::Null, TypeInfo::Fundamental);
+		TypePtr variableType = std::make_shared<FundamentalType>(BasicType::Null);
 		ExpressionPtr initializer = nullptr;
 		Token* nameToken = m_currentToken;
 

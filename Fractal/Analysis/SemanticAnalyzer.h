@@ -26,6 +26,8 @@ namespace Fractal {
 		// Return the index of the symbol in the local stack if it exists, if it does not then return -1
 		int32_t findNameLocal(const Token& nameToken);
 
+		bool compareArgsToParams(const std::vector<TypePtr>& paramList, std::shared_ptr<Call> call);
+
 		void pushScope();
 		void popScope();
 		SymbolTable& topScope();
@@ -65,10 +67,14 @@ namespace Fractal {
 		bool analyzeExpressionMemberAccess(ExpressionPtr expression);
 	private:
 		ProgramFile* m_program{ nullptr };
-		SymbolTable m_globalTable;
-		std::vector<SymbolTable> m_localStack;
+		SymbolTable m_globalTable{};
+		std::shared_ptr<FunctionType> m_currentFunction{ nullptr };
+		std::vector<SymbolTable> m_localStack{};
 
-		std::vector<uint8_t> m_loopStack;
+		std::vector<uint8_t> m_loopStack{};
+
+		// This will be expanded later
+		std::vector<std::string> m_userDefinedTypes{};
 
 		ErrorHandler* m_errorHandler{ nullptr };
 	};
