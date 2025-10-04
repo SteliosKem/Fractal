@@ -8,6 +8,7 @@
 
 namespace Fractal {
 	enum class BasicType {
+		None,
 		Null,
 		I32,
 		I64,

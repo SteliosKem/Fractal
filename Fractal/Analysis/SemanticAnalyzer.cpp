@@ -125,7 +125,20 @@ namespace Fractal {
 			topScope()[variableDefinition->nameToken.value] = SymbolEntry{ variableDefinition->nameToken.value, variableDefinition->variableType };
 		}
 
-		if (variableDefinition->initializer && !analyzeExpression(variableDefinition->initializer)) return false;
+		if (variableDefinition->initializer) {
+			if (!analyzeExpression(variableDefinition->initializer)) return false;
+			if (variableDefinition->variableType->typeInfo() == TypeInfo::Fundamental
+				&& static_pointer_cast<FundamentalType>(variableDefinition->variableType)->type == BasicType::None)
+				variableDefinition->variableType = variableDefinition->initializer->expressionType;
+			else {
+				if (!sameType(variableDefinition->initializer->expressionType, variableDefinition->variableType)) {
+					m_errorHandler->reportError({ "Initializer Expression does not match the variable's type", variableDefinition->nameToken.position });
+					return false;
+				}
+			}
+		}
+
+		return true;
 	}
 
 	bool SemanticAnalyzer::analyzeDefinitionClass(DefinitionPtr definition) { 

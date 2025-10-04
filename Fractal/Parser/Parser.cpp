@@ -422,7 +422,7 @@ namespace Fractal {
 			isConst = true;
 		advance();
 
-		TypePtr variableType = std::make_shared<FundamentalType>(BasicType::Null);
+		TypePtr variableType = std::make_shared<FundamentalType>(BasicType::None);
 		ExpressionPtr initializer = nullptr;
 		Token* nameToken = m_currentToken;
 
