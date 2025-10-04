@@ -3,7 +3,7 @@
 #
 
 # Add source to this project's executable.
-add_executable (Fractal "Fractal.cpp" "Fractal.h" "Utilities.h" "Common.h" "Utilities.cpp" "Lexer/Lexer.h" "Lexer/Token.h" "Lexer/Type.h" "Error/Position.h" "Lexer/Lexer.cpp" "Error/Error.h" "Error/Error.cpp" "Parser/Nodes.h" "Parser/Parser.h" "Parser/Parser.cpp" "Analysis/SemanticAnalyzer.h" "Analysis/SemanticAnalyzer.cpp")
+add_executable (Fractal "Fractal.cpp" "Fractal.h" "Utilities.h" "Common.h" "Utilities.cpp" "Lexer/Lexer.h" "Lexer/Token.h" "Lexer/Type.h" "Error/Position.h" "Lexer/Lexer.cpp" "Error/Error.h" "Error/Error.cpp" "Parser/Nodes.h" "Parser/Parser.h" "Parser/Parser.cpp" "Analysis/SemanticAnalyzer.h" "Analysis/SemanticAnalyzer.cpp" "CodeGeneration/CodeGenerator.h" "CodeGeneration/Instructions.h" "CodeGeneration/CodeGenerator.cpp")
 
 target_include_directories(Fractal PRIVATE "/")
 

@@ -136,15 +136,6 @@ namespace Fractal {
 
 	// -- STATEMENTS --
 	bool SemanticAnalyzer::analyzeStatement(StatementPtr statement) {
-		/*NullStatement,
-		CompoundStatement,
-		ExpressionStatement,
-		ReturnStatement,
-		IfStatement,
-		LoopStatement,
-		WhileStatement,
-		BreakStatement,
-		ContinueStatement,*/
 		switch (statement->getType()) {
 			case NodeType::CompoundStatement: return analyzeStatementCompound(statement);
 			case NodeType::ExpressionStatement: return analyzeStatementExpression(statement);
