@@ -6,6 +6,7 @@ int main()
 	Fractal::Lexer lexer(&errorHandler);
 	Fractal::Parser parser(&errorHandler);
 	Fractal::SemanticAnalyzer semanticAnalyzer(&errorHandler);
+	Fractal::CodeGenerator codeGenerator(&errorHandler);
 
 	if (!lexer.analyze("../../../../Testing/Source.frc")) {
 		errorHandler.outputErrors();
@@ -29,6 +30,9 @@ int main()
 		return EXIT_FAILURE;
 	}
 	errorHandler.outputWarnings();
+
+	for (auto instruction : codeGenerator.generate(parser.program()))
+		instruction->print();
 
 	return EXIT_SUCCESS;
 }

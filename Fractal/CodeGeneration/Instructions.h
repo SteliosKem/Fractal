@@ -4,6 +4,7 @@
 
 #pragma once
 #include "Common.h"
+#include <iostream>
 
 namespace Fractal {
 	enum class InstructionType {
@@ -26,12 +27,13 @@ namespace Fractal {
 		AX
 	};
 
-#define TYPE(x) InstructionType getType() const override { return InstructionType::x; }
+#define INSTR_TYPE(x) InstructionType getType() const override { return InstructionType::x; }
 
 	class Operand {
 	public:
 		virtual ~Operand() = default;
 		virtual OperandType getType() const { return OperandType::Operand; }
+		virtual void print() const {}
 	};
 
 	using OperandPtr = std::shared_ptr<Operand>;
@@ -40,6 +42,7 @@ namespace Fractal {
 	public:
 		IntegerConstant(int64_t integer) : integer{ integer } {}
 		virtual OperandType getType() const { return OperandType::IntegerConstant; }
+		void print() const override { std::cout << integer; }
 	public:
 		int64_t integer;
 	};
@@ -48,6 +51,7 @@ namespace Fractal {
 	public:
 		RegisterOperand(Register reg) : reg{ reg } {}
 		virtual OperandType getType() const { return OperandType::Register; }
+		void print() const override { std::cout << '%' << (int)reg; }
 	public:
 		Register reg;
 	};
@@ -56,16 +60,25 @@ namespace Fractal {
 	public:
 		virtual ~Instruction() = default;
 		virtual InstructionType getType() const { return InstructionType::Instruction; }
+		virtual void print() const {}
 	};
 
 	using InstructionPtr = std::shared_ptr<Instruction>;
 	using InstructionList = std::vector<InstructionPtr>;
 
-	class FunctionDefinition : public Instruction {
+	class FunctionDefInstruction : public Instruction {
 	public:
-		FunctionDefinition(const std::string& name, const InstructionList& instructions)
+		FunctionDefInstruction(const std::string& name, const InstructionList& instructions)
 			: name{ name }, instructions{ instructions } {}
-		TYPE(FunctionDefinition)
+		INSTR_TYPE(FunctionDefinition)
+		virtual void print() const override {
+			std::cout << "Function " + name + ":\n";
+			for (auto instruction : instructions) {
+				std::cout << "    ";
+				instruction->print();
+			}
+			std::cout << '\n';
+		}
 	public:
 		std::string name;
 		InstructionList instructions;
@@ -75,7 +88,14 @@ namespace Fractal {
 	public:
 		MoveInstruction(OperandPtr source, OperandPtr destination)
 			: source{ source }, destination{ destination } {}
-		TYPE(Move)
+		INSTR_TYPE(Move)
+		virtual void print() const override {
+			std::cout << "Move ";
+			source->print();
+			std::cout << ", ";
+			destination->print();
+			std::cout << '\n';
+		}
 	public:
 		OperandPtr source;
 		OperandPtr destination;
@@ -84,7 +104,9 @@ namespace Fractal {
 	class Return : public Instruction {
 	public:
 		Return() = default;
-		TYPE(Return)
+		INSTR_TYPE(Return)
+		virtual void print() const override {
+			std::cout << "Ret\n";
+		}
 	};
-
 }
