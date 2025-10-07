@@ -27,6 +27,13 @@ namespace Fractal {
 		AX
 	};
 
+	enum class Size : uint8_t {
+		Byte = 8,
+		Word = 16,
+		DWord = 32,
+		QWord = 64
+	};
+
 #define INSTR_TYPE(x) InstructionType getType() const override { return InstructionType::x; }
 
 	class Operand {

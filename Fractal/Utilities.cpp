@@ -35,7 +35,15 @@ namespace Fractal {
 			if (currentLine == lineIndex) break;
 		}
 
+		file.close();
+
 		return line;
+	}
+
+	void writeFile(const std::string& source, const std::filesystem::path& path) {
+		std::ofstream file{ path };
+		file << source;
+		file.close();
 	}
 
 	bool isDigit(char character) {

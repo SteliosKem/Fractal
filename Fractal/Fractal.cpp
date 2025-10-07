@@ -7,6 +7,7 @@ int main()
 	Fractal::Parser parser(&errorHandler);
 	Fractal::SemanticAnalyzer semanticAnalyzer(&errorHandler);
 	Fractal::CodeGenerator codeGenerator(&errorHandler);
+	Fractal::IntelCodeEmission emitter{};
 
 	if (!lexer.analyze("../../../../Testing/Source.frc")) {
 		errorHandler.outputErrors();
@@ -31,8 +32,15 @@ int main()
 	}
 	errorHandler.outputWarnings();
 
+	std::cout << '\n';
+
 	for (auto instruction : codeGenerator.generate(parser.program()))
 		instruction->print();
+
+	std::cout << '\n';
+
+	std::cout << emitter.emit(&codeGenerator.instructions());
+
 
 	return EXIT_SUCCESS;
 }

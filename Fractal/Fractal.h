@@ -9,3 +9,4 @@
 #include "Parser/Parser.h"
 #include "Analysis/SemanticAnalyzer.h"
 #include "CodeGeneration/CodeGenerator.h"
+#include "CodeEmission/IntelCodeEmission.h"
