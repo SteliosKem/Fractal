@@ -20,7 +20,8 @@ namespace Fractal {
 
 	void CodeGenerator::generateDefinition(DefinitionPtr definition, InstructionList* instructions) {
 		switch (definition->getType()) {
-		case NodeType::FunctionDefinition: generateFunctionDefinition(definition, instructions);
+			case NodeType::FunctionDefinition: generateFunctionDefinition(definition, instructions);
+			default: return;
 		}
 	}
 
@@ -36,8 +37,9 @@ namespace Fractal {
 
 	void CodeGenerator::generateStatement(StatementPtr statement, InstructionList* instructions) {
 		switch (statement->getType()) {
-		case NodeType::ReturnStatement: generateReturnStatement(statement, instructions); return;
-		case NodeType::CompoundStatement: generateCompoundStatement(statement, instructions); return;
+			case NodeType::ReturnStatement: generateReturnStatement(statement, instructions); return;
+			case NodeType::CompoundStatement: generateCompoundStatement(statement, instructions); return;
+			default: return;
 		}
 	}
 
@@ -57,7 +59,8 @@ namespace Fractal {
 
 	void CodeGenerator::generateExpression(ExpressionPtr expression, InstructionList* instructions) {
 		switch (expression->getType()) {
-		case NodeType::IntegerLiteral: generateIntConstant(expression, instructions);
+			case NodeType::IntegerLiteral: generateIntConstant(expression, instructions);
+			default: return;
 		}
 	}
 

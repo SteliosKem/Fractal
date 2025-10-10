@@ -154,6 +154,7 @@ namespace Fractal {
 			return std::make_shared<StringLiteral>(token.value, token.position);
 		case CHARACTER_LITERAL:
 			return std::make_shared<CharacterLiteral>(token.value, token.position);
+		default: return nullptr;
 		}
 		
 	}
@@ -269,6 +270,7 @@ namespace Fractal {
 			case CONST:
 				// Local variable
 				return definitionVariable(false);
+			default: break;
 		}
 		return statementExpression();
 	}

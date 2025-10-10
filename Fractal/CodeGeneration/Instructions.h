@@ -48,7 +48,7 @@ namespace Fractal {
 	class IntegerConstant : public Operand {
 	public:
 		IntegerConstant(int64_t integer) : integer{ integer } {}
-		virtual OperandType getType() const { return OperandType::IntegerConstant; }
+		virtual OperandType getType() const override { return OperandType::IntegerConstant; }
 		void print() const override { std::cout << integer; }
 	public:
 		int64_t integer;
@@ -57,7 +57,7 @@ namespace Fractal {
 	class RegisterOperand : public Operand {
 	public:
 		RegisterOperand(Register reg) : reg{ reg } {}
-		virtual OperandType getType() const { return OperandType::Register; }
+		virtual OperandType getType() const override { return OperandType::Register; }
 		void print() const override { std::cout << '%' << (int)reg; }
 	public:
 		Register reg;

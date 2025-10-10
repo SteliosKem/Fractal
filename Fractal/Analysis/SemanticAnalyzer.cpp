@@ -7,6 +7,7 @@
 namespace Fractal {
 	bool SemanticAnalyzer::findNameGlobal(const Token& nameToken) {
 		if (m_globalTable.find(nameToken.value) != m_globalTable.end()) return true;
+		return false;
 	}
 
 	int32_t SemanticAnalyzer::findNameLocal(const Token& nameToken) {
@@ -47,6 +48,8 @@ namespace Fractal {
 			case NodeType::FunctionDefinition: return analyzeDefinitionFunction(definition);
 			case NodeType::VariableDefinition: return analyzeDefinitionVariable(definition);
 			case NodeType::ClassDefinition: return analyzeDefinitionClass(definition);
+			default:
+				return false;
 		}
 	}
 
@@ -160,6 +163,7 @@ namespace Fractal {
 			case NodeType::ContinueStatement: return analyzeStatementContinue(statement);
 			case NodeType::VariableDefinition: return analyzeDefinitionVariable(static_pointer_cast<Definition>(statement));
 			case NodeType::NullStatement: return true;
+			default: return false;
 		}
 	}
 
@@ -275,6 +279,7 @@ namespace Fractal {
 			case NodeType::Call: return analyzeExpressionCall(expression);
 			case NodeType::Assignment: return analyzeExpressionAssignment(expression);
 			case NodeType::MemberAccess: return analyzeExpressionMemberAccess(expression);
+			default: return false;
 		}
 	}
 

@@ -124,7 +124,7 @@ namespace Fractal {
 
 	class ArrayList : public Expression {
 	public:
-		ArrayList(const std::vector<ArrayElement>& elements) : elements{ elements }, elementType{ elementType } {}
+		ArrayList(const std::vector<ArrayElement>& elements) : elements{ elements } {}
 		void print() const override { 
 			std::cout << "Array [";
 			for (auto& element : elements) {
@@ -136,7 +136,7 @@ namespace Fractal {
 		TYPE(NodeType::ArrayList)
 	public:
 		std::vector<ArrayElement> elements;
-		TypePtr elementType;
+		TypePtr elementType{ nullptr };
 	};
 
 	class UnaryOperation : public Expression {

@@ -34,6 +34,7 @@ namespace Fractal {
 		case InstructionType::FunctionDefinition: emitFunctionDefinition(instruction); return;
 		case InstructionType::Move: emitMove(instruction); return;
 		case InstructionType::Return: emitReturn(); return;
+		default: return;
 		}
 	}
 
@@ -69,7 +70,7 @@ namespace Fractal {
 		case OperandType::IntegerConstant: return std::to_string(static_pointer_cast<IntegerConstant>(operand)->integer);
 		case OperandType::Register: return getRegister(static_pointer_cast<RegisterOperand>(operand));
 		default:
-			break;
+			return "";
 		}
 	}
 

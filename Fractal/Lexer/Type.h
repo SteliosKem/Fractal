@@ -41,7 +41,7 @@ namespace Fractal {
 		case BasicType::String: return "String";
 		case BasicType::Character: return "Char";
 		default:
-			break;
+			return "";
 		}
 	}
 
@@ -138,6 +138,7 @@ namespace Fractal {
 				for (size_t i = 0; i < a_->parameterTypes.size(); i++)
 					if (!sameType(a_->parameterTypes[i], b_->parameterTypes[i])) return false;
 			}
+			default: return false;
 		}
 		return true;
 	}
