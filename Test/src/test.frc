@@ -1,0 +1,13 @@
+/* Sample Fractal main file. 
+This file, which has the same name as the project, acts as the main function of the program.
+Program execution starts from the first statement outside of the definitions header. */
+
+<define>
+
+fn sampleFunction(): i32 {
+    return 0;
+}
+
+<!define>
+
+sampleFunction();

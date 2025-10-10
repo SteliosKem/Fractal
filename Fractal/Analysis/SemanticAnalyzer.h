@@ -19,6 +19,7 @@ namespace Fractal {
 	public:
 		SemanticAnalyzer(ErrorHandler* errorHandler) : m_errorHandler{ errorHandler } {}
 		bool analyze(ProgramFile* program);
+		bool saveDefinitions(ProgramFile* program);
 	private:
 		// -- UTILITY --
 		bool findNameGlobal(const Token& nameToken);
@@ -35,11 +36,11 @@ namespace Fractal {
 
 		// -- DEFINITIONS --
 		
-		bool analyzeDefinition(DefinitionPtr definition);
-		bool analyzeDefinitionFunction(DefinitionPtr definition);
+		bool analyzeDefinition(DefinitionPtr definition, bool toSave = false);
+		bool analyzeDefinitionFunction(DefinitionPtr definition, bool toSave = false);
 		bool analyzeParameters(const ParameterList& paramList);
-		bool analyzeDefinitionVariable(DefinitionPtr definition);
-		bool analyzeDefinitionClass(DefinitionPtr definition);
+		bool analyzeDefinitionVariable(DefinitionPtr definition, bool toSave = false);
+		bool analyzeDefinitionClass(DefinitionPtr definition, bool toSave = false);
 
 		// -- STATEMENTS --
 		bool analyzeStatement(StatementPtr statement);

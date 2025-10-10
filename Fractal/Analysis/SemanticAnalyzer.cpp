@@ -30,7 +30,6 @@ namespace Fractal {
 	bool SemanticAnalyzer::analyze(ProgramFile* program) {
 		m_program = program;
 		m_localStack = {};
-		m_globalTable = {};
 
 		for (auto& definition : m_program->definitions)
 			if (!analyzeDefinition(definition)) return false;
@@ -43,11 +42,18 @@ namespace Fractal {
 		return true;
 	}
 
-	bool SemanticAnalyzer::analyzeDefinition(DefinitionPtr definition) {
+	bool SemanticAnalyzer::saveDefinitions(ProgramFile* program) {
+		m_program = program;
+
+		for(auto definition : m_program->definitions)
+			if(!analyzeDefinition(definition)) return false;
+	}
+
+	bool SemanticAnalyzer::analyzeDefinition(DefinitionPtr definition, bool toSave) {
 		switch (definition->getType()) {
-			case NodeType::FunctionDefinition: return analyzeDefinitionFunction(definition);
-			case NodeType::VariableDefinition: return analyzeDefinitionVariable(definition);
-			case NodeType::ClassDefinition: return analyzeDefinitionClass(definition);
+			case NodeType::FunctionDefinition: return analyzeDefinitionFunction(definition, toSave);
+			case NodeType::VariableDefinition: return analyzeDefinitionVariable(definition, toSave);
+			case NodeType::ClassDefinition: return analyzeDefinitionClass(definition, toSave);
 			default:
 				return false;
 		}
@@ -65,7 +71,7 @@ namespace Fractal {
 		return m_localStack[m_localStack.size() - 1];
 	}
 
-	bool SemanticAnalyzer::analyzeDefinitionFunction(DefinitionPtr definition) {
+	bool SemanticAnalyzer::analyzeDefinitionFunction(DefinitionPtr definition, bool toSave) {
 		std::shared_ptr<FunctionDefinition> functionDefinition = static_pointer_cast<FunctionDefinition>(definition);
 
 		pushScope();
@@ -89,6 +95,7 @@ namespace Fractal {
 
 		m_currentFunction = nullptr;
 		popScope();
+		
 		return true;
 	}
 
@@ -107,7 +114,7 @@ namespace Fractal {
 		return true;
 	}
 
-	bool SemanticAnalyzer::analyzeDefinitionVariable(DefinitionPtr definition) { 
+	bool SemanticAnalyzer::analyzeDefinitionVariable(DefinitionPtr definition, bool toSave) { 
 		std::shared_ptr<VariableDefinition> variableDefinition = static_pointer_cast<VariableDefinition>(definition);
 
 		if (variableDefinition->isGlobal) {
@@ -144,7 +151,7 @@ namespace Fractal {
 		return true;
 	}
 
-	bool SemanticAnalyzer::analyzeDefinitionClass(DefinitionPtr definition) { 
+	bool SemanticAnalyzer::analyzeDefinitionClass(DefinitionPtr definition, bool toSave) { 
 		std::shared_ptr<ClassDefinition> classDef = static_pointer_cast<ClassDefinition>(definition);
 		m_userDefinedTypes.push_back(classDef->className);
 		return true;
