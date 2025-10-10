@@ -9,7 +9,7 @@ int main()
 	Fractal::CodeGenerator codeGenerator(&errorHandler);
 	Fractal::IntelCodeEmission emitter{};
 
-	if (!lexer.analyze("../../../../Testing/Source.frc")) {
+	if (!lexer.analyze("../../../../source.frc")) {
 		errorHandler.outputErrors();
 		return EXIT_FAILURE;
 	}
@@ -40,7 +40,6 @@ int main()
 	std::cout << '\n';
 
 	std::cout << emitter.emit(&codeGenerator.instructions());
-
 
 	return EXIT_SUCCESS;
 }

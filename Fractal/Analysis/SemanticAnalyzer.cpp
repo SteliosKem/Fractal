@@ -200,7 +200,9 @@ namespace Fractal {
 		if (!sameType(returnStatement->expression->expressionType, m_currentFunction->returnType)) {
 			m_errorHandler->reportError({"Cannot return type '" + returnStatement->expression->expressionType->typeName() 
 				+ "' from a function which returns type '" + m_currentFunction->returnType->typeName() + "'", returnStatement->token.position});
+			return false;
 		}
+		return true;
 	}
 
 	bool SemanticAnalyzer::analyzeStatementIf(StatementPtr statement) {

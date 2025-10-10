@@ -8,6 +8,8 @@ namespace Fractal {
 	const std::string& IntelCodeEmission::emit(const InstructionList* instructions) {
 		m_instructions = instructions;
 
+		writeLine("section .text");
+
 		for (auto instruction : *instructions)
 			emitInstruction(instruction);
 
@@ -37,6 +39,7 @@ namespace Fractal {
 
 	void IntelCodeEmission::emitFunctionDefinition(InstructionPtr instruction) {
 		std::shared_ptr<FunctionDefInstruction> functionDefinition = static_pointer_cast<FunctionDefInstruction>(instruction);
+		writeLine("global " + functionDefinition->name);
 		label(functionDefinition->name);
 
 		for (auto instruction : functionDefinition->instructions)
@@ -46,7 +49,7 @@ namespace Fractal {
 	void IntelCodeEmission::emitMove(InstructionPtr instruction) {
 		std::shared_ptr<MoveInstruction> moveInstruction = static_pointer_cast<MoveInstruction>(instruction);
 
-		writeILine("mov DWORD PTR[eax], " + getOperandStr(moveInstruction->source));
+		writeILine("mov " + getOperandStr(moveInstruction->destination) + ", " + getOperandStr(moveInstruction->source));
 	}
 
 	void IntelCodeEmission::emitReturn() {

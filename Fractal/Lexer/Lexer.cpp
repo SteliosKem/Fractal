@@ -182,7 +182,7 @@ namespace Fractal {
 
 		// If this part of the code is reached, then the current character does not match any known one, so an adequate error is reported.
 
-		m_errorHandler->reportError({ std::format("Unkown Character '{0}'", currentCharacter()), position });
+		m_errorHandler->reportError({ "Unkown Character '" + std::string(1, currentCharacter()) + "'", position });
 		return Token{ SPECIAL_ERROR, "", position };
 	}
 

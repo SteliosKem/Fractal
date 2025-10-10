@@ -52,6 +52,7 @@ namespace Fractal {
 		std::shared_ptr<ReturnStatement> returnStatement = static_pointer_cast<ReturnStatement>(statement);
 
 		generateExpression(returnStatement->expression, instructions);
+		instructions->push_back(std::make_shared<ReturnInstruction>());
 	}
 
 	void CodeGenerator::generateExpression(ExpressionPtr expression, InstructionList* instructions) {

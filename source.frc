@@ -1,0 +1,7 @@
+<define>
+
+fn func(): i32 {
+    return 5;
+}
+
+<!define>

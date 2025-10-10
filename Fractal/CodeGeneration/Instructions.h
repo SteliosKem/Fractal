@@ -108,9 +108,9 @@ namespace Fractal {
 		OperandPtr destination;
 	};
 
-	class Return : public Instruction {
+	class ReturnInstruction : public Instruction {
 	public:
-		Return() = default;
+		ReturnInstruction() = default;
 		INSTR_TYPE(Return)
 		virtual void print() const override {
 			std::cout << "Ret\n";
