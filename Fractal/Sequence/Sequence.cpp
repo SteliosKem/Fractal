@@ -13,13 +13,14 @@
 
 namespace Fractal {
     void to_json(json& j, const Project& p) {
-        j = json{ {"Name", p.name}, {"SourcePath", p.srcPath}, {"BuildPath", p.outPath} };
+        j = json{ {"Name", p.name}, {"SourcePath", p.srcPath}, {"BuildPath", p.outPath}, {"Architecture", p.architecture} };
     }
 
     void from_json(const json& j, Project& p) {
         j.at("Name").get_to(p.name);
         j.at("SourcePath").get_to(p.srcPath);
         j.at("BuildPath").get_to(p.outPath);
+        j.at("Architecture").get_to(p.architecture);
     }
 
     bool createProject(const std::filesystem::path& projectDir, const Project& project) {
@@ -99,12 +100,18 @@ sampleFunction();)";
 
         std::cout << '\n';
 
-        std::cout << emitter.emit(&codeGenerator.instructions());
+        if(project.architecture == "x86_64-intel-win") {
+            std::cout << emitter.emit(&codeGenerator.instructions());
 
-        std::filesystem::path intermediate = projectDir / project.outPath / "intermediate";
-        if(!std::filesystem::exists(intermediate))
-            std::filesystem::create_directory(intermediate);
-        writeFile(emitter.output(), intermediate / (project.name + ".asm"));
+            std::filesystem::path intermediate = projectDir / project.outPath / "intermediate";
+            if(!std::filesystem::exists(intermediate))
+                std::filesystem::create_directory(intermediate);
+            writeFile(emitter.output(), intermediate / (project.name + ".asm"));
+        }
+        else {
+            std::cout << "Invalid architecture specified in build config. Aborting.";
+            return false;
+        }
         return true;
     }
 }

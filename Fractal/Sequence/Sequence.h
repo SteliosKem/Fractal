@@ -14,6 +14,7 @@ namespace Fractal {
         std::string name;
         std::string srcPath;
         std::string outPath;
+        std::string architecture;
     };
 
     void to_json(json& j, const Project& p);

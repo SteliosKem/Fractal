@@ -42,7 +42,7 @@ int main(int argc, char** argv)
     
 	const std::string& projectName = input.getCmdOption("create");
 	if(!projectName.empty()) {
-		Fractal::createProject(std::filesystem::current_path(), Fractal::Project{projectName, "src/", "build/"});
+		Fractal::createProject(std::filesystem::current_path(), Fractal::Project{projectName, "src/", "build/", "x86_64-intel-win"});
 		return EXIT_SUCCESS;
 	}
 
