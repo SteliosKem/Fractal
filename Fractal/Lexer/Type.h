@@ -45,7 +45,8 @@ namespace Fractal {
 		}
 	}
 
-	struct Type {
+	class Type {
+	public:
 		virtual ~Type() = default;
 		virtual TypeInfo typeInfo() const { return TypeInfo::Empty; }
 		virtual std::string typeName() const { return ""; }

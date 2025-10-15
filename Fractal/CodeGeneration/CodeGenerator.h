@@ -23,19 +23,31 @@ namespace Fractal {
 		void generateStatement(StatementPtr statement, InstructionList* instructions);
 		void generateReturnStatement(StatementPtr statement, InstructionList* instructions);
 		void generateCompoundStatement(StatementPtr statement, InstructionList* instructions);
-		OperandPtr generateConstant();
 
 		// -- EXPRESSIONS --
-		void generateExpression(ExpressionPtr expression, InstructionList* instructions);
-		void generateIntConstant(ExpressionPtr expression, InstructionList* instructions);
+		OperandPtr generateExpression(ExpressionPtr expression, InstructionList* instructions);
+		OperandPtr generateUnaryOperation(ExpressionPtr expression, InstructionList* instructions);
+		OperandPtr generateIntConstant(ExpressionPtr expression, InstructionList* instructions);
 
 		// -- INSTRUCTIONS --
 		InstructionPtr move(OperandPtr source, OperandPtr destination);
+		InstructionPtr negate(OperandPtr source);
+		InstructionPtr not_(OperandPtr source);
 		OperandPtr reg(Register register_);
 		OperandPtr intConst(int64_t integer);
+
+		// -- STACK --
+		int64_t allocateStack(Size size);
+		void popStack(uint64_t ammount);
+
+		// -- VALIDATE INSTRUCTIONS --
+		void validateInstructions(InstructionList* instructions);
+		void validateFunction(InstructionPtr instruction);
+		void validateMove(InstructionList* instructions, size_t i);
 	private:
 		InstructionList m_instructions{};
 		ProgramFile m_program{};
+		int64_t m_currentStackIndex{};
 		ErrorHandler* m_errorHandler{ nullptr };
 	};
 }

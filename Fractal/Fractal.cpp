@@ -1,5 +1,11 @@
 ﻿#include "Fractal.h"
 
+#include "Lexer/Lexer.h"
+#include "Parser/Parser.h"
+#include "Analysis/SemanticAnalyzer.h"
+#include "CodeGeneration/CodeGenerator.h"
+#include "CodeEmission/IntelCodeEmission.h"
+
 class InputParser{
 public:
 	InputParser(int &argc, char **argv) {
@@ -28,6 +34,46 @@ int main(int argc, char** argv)
 {
 	if(argc < 2) {
 		std::cout << "Expected arguments. Run Fractal --help to see the correct usage of the command.";
+
+		Fractal::ErrorHandler errorHandler;
+		Fractal::Lexer lexer(&errorHandler);
+		Fractal::Parser parser(&errorHandler);
+		Fractal::SemanticAnalyzer semanticAnalyzer(&errorHandler);
+		Fractal::CodeGenerator codeGenerator(&errorHandler);
+		Fractal::IntelCodeEmission emitter{};
+
+		if (!lexer.analyze("../../../../Test/src/test.frc")) {
+			errorHandler.outputErrors();
+			return false;
+		}
+		lexer.print();
+
+		if (!parser.parse(lexer.getTokenList())) {
+			errorHandler.outputErrors();
+			return false;
+		}
+
+		for (auto& definition : parser.definitions())
+			definition->print();
+		for (auto& statement : parser.statements())
+			statement->print();
+
+		if (!semanticAnalyzer.analyze(&parser.program())) {
+			errorHandler.outputWarnings();
+			errorHandler.outputErrors();
+			return false;
+		}
+		errorHandler.outputWarnings();
+
+		std::cout << '\n';
+
+		for (auto instruction : codeGenerator.generate(parser.program()))
+			instruction->print();
+
+		std::cout << '\n';
+
+		std::cout << emitter.emit(&codeGenerator.instructions());
+
 		return EXIT_FAILURE;
 	}
 	InputParser input(argc, argv);
@@ -42,7 +88,7 @@ int main(int argc, char** argv)
     
 	const std::string& projectName = input.getCmdOption("create");
 	if(!projectName.empty()) {
-		Fractal::createProject(std::filesystem::current_path(), Fractal::Project{projectName, "src/", "build/", "x86_64-intel-win"});
+		Fractal::createProject(std::filesystem::current_path(), Fractal::Project{projectName, "src", "build", "x86_64-intel-win"});
 		return EXIT_SUCCESS;
 	}
 

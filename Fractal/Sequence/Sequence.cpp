@@ -107,11 +107,17 @@ sampleFunction();)";
             if(!std::filesystem::exists(intermediate))
                 std::filesystem::create_directory(intermediate);
             writeFile(emitter.output(), intermediate / (project.name + ".asm"));
+
+            std::string path = project.outPath + "\\intermediate\\" + project.name;
+
+            system(("nasm -f elf64 " + path + ".asm -o " + path + ".obj").c_str());
+            system(("gcc " + path + ".obj -o " + path + ".exe").c_str());
         }
         else {
             std::cout << "Invalid architecture specified in build config. Aborting.";
             return false;
         }
+
         return true;
     }
 }

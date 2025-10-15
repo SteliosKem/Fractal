@@ -15,23 +15,27 @@ namespace Fractal {
 		Instruction,
 		Move,
 		Return,
+		Negate,
+		Not
 	};
 
 	enum class OperandType {
 		Operand,
 		IntegerConstant,
-		Register
+		Register,
+		Temp
 	};
 
 	enum class Register {
-		AX
+		AX,
+		R10
 	};
 
 	enum class Size : uint8_t {
-		Byte = 8,
-		Word = 16,
-		DWord = 32,
-		QWord = 64
+		Byte = 1,
+		Word = 2,
+		DWord = 4,
+		QWord = 8
 	};
 
 #define INSTR_TYPE(x) InstructionType getType() const override { return InstructionType::x; }
@@ -63,6 +67,15 @@ namespace Fractal {
 		Register reg;
 	};
 
+	class TempOperand : public Operand {
+	public:
+		TempOperand(int64_t stackOffest) : stackOffest{ stackOffest } {}
+		virtual OperandType getType() const override { return OperandType::Temp; }
+		void print() const override { std::cout << "Stack access " << stackOffest; }
+	public:
+		int64_t stackOffest;
+	};
+
 	class Instruction {
 	public:
 		virtual ~Instruction() = default;
@@ -79,7 +92,7 @@ namespace Fractal {
 			: name{ name }, instructions{ instructions } {}
 		INSTR_TYPE(FunctionDefinition)
 		virtual void print() const override {
-			std::cout << "Function " + name + ":\n";
+			std::cout << "Function " << name << " stack alloc " << stackAlloc << ":\n";
 			for (auto instruction : instructions) {
 				std::cout << "    ";
 				instruction->print();
@@ -89,6 +102,7 @@ namespace Fractal {
 	public:
 		std::string name;
 		InstructionList instructions;
+		uint64_t stackAlloc;
 	};
 
 	class MoveInstruction : public Instruction {
@@ -106,6 +120,30 @@ namespace Fractal {
 	public:
 		OperandPtr source;
 		OperandPtr destination;
+	};
+
+	class NegateInstruction : public Instruction {
+	public:
+		NegateInstruction(OperandPtr source) : source{ source } {}
+		INSTR_TYPE(Negate)
+			virtual void print() const override {
+			std::cout << "Negate ";
+			source->print();
+		}
+	public:
+		OperandPtr source;
+	};
+
+	class NotInstruction : public Instruction {
+	public:
+		NotInstruction(OperandPtr source) : source{ source } {}
+		INSTR_TYPE(Not)
+			virtual void print() const override {
+			std::cout << "Not ";
+			source->print();
+		}
+	public:
+		OperandPtr source;
 	};
 
 	class ReturnInstruction : public Instruction {

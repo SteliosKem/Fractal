@@ -15,6 +15,8 @@ namespace Fractal {
 		for (auto statement : program.statements)
 			generateStatement(statement, &mainFunc->instructions);
 
+		validateInstructions(&m_instructions);
+
 		return m_instructions;
 	}
 
@@ -26,6 +28,7 @@ namespace Fractal {
 	}
 
 	void CodeGenerator::generateFunctionDefinition(DefinitionPtr definition, InstructionList* instructions) {
+		m_currentStackIndex = 0;
 		std::shared_ptr<FunctionDefinition> func = static_pointer_cast<FunctionDefinition>(definition);
 		std::shared_ptr<FunctionDefInstruction> mainFunc = std::make_shared<FunctionDefInstruction>("main", InstructionList{});
 
@@ -33,6 +36,7 @@ namespace Fractal {
 		generateStatement(func->functionBody, &mainFunc->instructions);
 
 		instructions->push_back(mainFunc);
+		mainFunc->stackAlloc = m_currentStackIndex;
 	}
 
 	void CodeGenerator::generateStatement(StatementPtr statement, InstructionList* instructions) {
@@ -53,26 +57,53 @@ namespace Fractal {
 	void CodeGenerator::generateReturnStatement(StatementPtr statement, InstructionList* instructions) {
 		std::shared_ptr<ReturnStatement> returnStatement = static_pointer_cast<ReturnStatement>(statement);
 
-		generateExpression(returnStatement->expression, instructions);
+		instructions->push_back(move(generateExpression(returnStatement->expression, instructions), reg(Register::AX)));
 		instructions->push_back(std::make_shared<ReturnInstruction>());
 	}
 
-	void CodeGenerator::generateExpression(ExpressionPtr expression, InstructionList* instructions) {
+	OperandPtr CodeGenerator::generateExpression(ExpressionPtr expression, InstructionList* instructions) {
 		switch (expression->getType()) {
-			case NodeType::IntegerLiteral: generateIntConstant(expression, instructions);
-			default: return;
+			case NodeType::IntegerLiteral: return generateIntConstant(expression, instructions);
+			case NodeType::UnaryOperation: return generateUnaryOperation(expression, instructions);
+			default: return nullptr;
 		}
 	}
 
-	void CodeGenerator::generateIntConstant(ExpressionPtr expression, InstructionList* instructions) {
+	OperandPtr CodeGenerator::generateUnaryOperation(ExpressionPtr expression, InstructionList* instructions) {
+		std::shared_ptr<UnaryOperation> unaryOp = static_pointer_cast<UnaryOperation>(expression);
+		std::shared_ptr<TempOperand> destination = std::make_shared<TempOperand>(allocateStack(Size::DWord));
+
+		instructions->push_back(move(generateExpression(unaryOp->expression, instructions), destination));
+
+		switch (unaryOp->operatorToken.type) {
+		case MINUS:
+			instructions->push_back(negate(destination));
+			break;
+		case BANG:
+			instructions->push_back(not_(destination));
+			break;
+		}
+
+		return destination;
+	}
+
+	OperandPtr CodeGenerator::generateIntConstant(ExpressionPtr expression, InstructionList* instructions) {
 		std::shared_ptr<IntegerLiteral> intLiteral = static_pointer_cast<IntegerLiteral>(expression);
 
-		instructions->push_back(move(intConst(intLiteral->value), reg(Register::AX)));
+		return intConst(intLiteral->value);
 	}
 
 
 	InstructionPtr CodeGenerator::move(OperandPtr source, OperandPtr destination) {
 		return std::make_shared<MoveInstruction>(source, destination);
+	}
+
+	InstructionPtr CodeGenerator::negate(OperandPtr source) {
+		return std::make_shared<NegateInstruction>(source);
+	}
+
+	InstructionPtr CodeGenerator::not_(OperandPtr source) {
+		return std::make_shared<NotInstruction>(source);
 	}
 
 	OperandPtr CodeGenerator::reg(Register register_) {
@@ -81,5 +112,36 @@ namespace Fractal {
 
 	OperandPtr CodeGenerator::intConst(int64_t integer) {
 		return std::make_shared<IntegerConstant>(integer);
+	}
+
+	int64_t CodeGenerator::allocateStack(Size size) {
+		m_currentStackIndex += (int)size;
+		return m_currentStackIndex;
+	}
+
+	void popStack(uint64_t ammount);
+
+	void CodeGenerator::validateInstructions(InstructionList* instructions) {
+		for(size_t i = 0; i < instructions->size(); i++) {
+			switch ((*instructions)[i]->getType()) {
+			case InstructionType::FunctionDefinition: validateFunction((*instructions)[i]); break;
+			case InstructionType::Move: validateMove(instructions, i); break;
+			}
+		}
+	}
+
+	void CodeGenerator::validateFunction(InstructionPtr instruction) {
+		std::shared_ptr<FunctionDefInstruction> func = static_pointer_cast<FunctionDefInstruction>(instruction);
+		validateInstructions(&func->instructions);
+	}
+
+	void CodeGenerator::validateMove(InstructionList* instructions, size_t i) {
+		std::shared_ptr<MoveInstruction> moveInstruction = static_pointer_cast<MoveInstruction>((*instructions)[i]);
+		if (moveInstruction->source->getType() == OperandType::Temp && moveInstruction->destination->getType() == OperandType::Temp) {
+			OperandPtr scratchReg = reg(Register::R10);
+			OperandPtr destination = moveInstruction->destination;
+			moveInstruction->destination = scratchReg;
+			instructions->emplace(instructions->begin() + i + 1, move(scratchReg, destination));
+		}
 	}
 }

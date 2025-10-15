@@ -18,10 +18,14 @@ namespace Fractal {
 		// -- FROM INSTRUCTION LIST --
 		void emitInstruction(InstructionPtr instruction);
 		void emitFunctionDefinition(InstructionPtr instruction);
+		void emitFunctionPrologue(uint64_t stackAlloc);
+		void emitFunctionEpilogue();
 		void emitMove(InstructionPtr instruction);
+		void emitNegation(InstructionPtr instruction);
 		void emitReturn();
 
 		std::string getOperandStr(OperandPtr operand);
+		std::string getTemp(OperandPtr operand);
 
 		// -- UTILITY --
 
