@@ -166,6 +166,21 @@ namespace Fractal {
 		OperandPtr other;
 	};
 
+	class SubtractInstruction : public Instruction {
+	public:
+		SubtractInstruction(OperandPtr destination, OperandPtr other) : destination{ destination }, other{ other } {}
+		INSTR_TYPE(Subtract)
+			virtual void print() const override {
+			std::cout << "sub ";
+			other->print();
+			std::cout << " from ";
+			destination->print();
+		}
+	public:
+		OperandPtr destination;
+		OperandPtr other;
+	};
+
 	class ReturnInstruction : public Instruction {
 	public:
 		ReturnInstruction() = default;

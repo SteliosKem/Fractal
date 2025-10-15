@@ -104,6 +104,9 @@ namespace Fractal {
 		case PLUS:
 			instructions->push_back(add(destination, generateExpression(binaryOp->right, instructions)));
 			break;
+		case MINUS:
+			instructions->push_back(sub(destination, generateExpression(binaryOp->right, instructions)));
+			break;
 		}
 
 		return destination;
@@ -124,6 +127,10 @@ namespace Fractal {
 
 	InstructionPtr CodeGenerator::add(OperandPtr destination, OperandPtr other) {
 		return std::make_shared<AddInstruction>(destination, other);
+	}
+
+	InstructionPtr CodeGenerator::sub(OperandPtr destination, OperandPtr other) {
+		return std::make_shared<SubtractInstruction>(destination, other);
 	}
 
 	OperandPtr CodeGenerator::reg(Register register_) {
@@ -147,6 +154,7 @@ namespace Fractal {
 			case InstructionType::FunctionDefinition: validateFunction((*instructions)[i]); break;
 			case InstructionType::Move: validateMove(instructions, i); break;
 			case InstructionType::Add: validateAdd(instructions, i); break;
+			case InstructionType::Subtract: validateSub(instructions, i); break;
 			}
 		}
 	}
@@ -172,6 +180,16 @@ namespace Fractal {
 			OperandPtr scratchReg = reg(Register::R10);
 			OperandPtr other = addInstruction->other;
 			addInstruction->other = scratchReg;
+			instructions->emplace(instructions->begin() + i, move(other, scratchReg));
+		}
+	}
+
+	void CodeGenerator::validateSub(InstructionList* instructions, size_t i) {
+		std::shared_ptr<SubtractInstruction> subInstruction = static_pointer_cast<SubtractInstruction>((*instructions)[i]);
+		if (subInstruction->destination->getType() == OperandType::Temp && subInstruction->other->getType() == OperandType::Temp) {
+			OperandPtr scratchReg = reg(Register::R10);
+			OperandPtr other = subInstruction->other;
+			subInstruction->other = scratchReg;
 			instructions->emplace(instructions->begin() + i, move(other, scratchReg));
 		}
 	}
