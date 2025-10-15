@@ -164,33 +164,36 @@ namespace Fractal {
 		validateInstructions(&func->instructions);
 	}
 
+	void CodeGenerator::validateMoveOperands(InstructionList* instructions, size_t i, OperandPtr source, OperandPtr* destination) {
+		if (source->getType() == OperandType::Temp && (*destination)->getType() == OperandType::Temp) {
+			OperandPtr scratchReg = reg(Register::R10);
+			OperandPtr oldDestination = *destination;
+			*destination = scratchReg;
+			instructions->emplace(instructions->begin() + i + 1, move(scratchReg, oldDestination));
+		}
+	}
+
+	void CodeGenerator::validateBinOperands(InstructionList* instructions, size_t i, OperandPtr source, OperandPtr* other) {
+		if (source->getType() == OperandType::Temp && (*other)->getType() == OperandType::Temp) {
+			OperandPtr scratchReg = reg(Register::R10);
+			OperandPtr oldOther = *other;
+			*other = scratchReg;
+			instructions->emplace(instructions->begin() + i, move(oldOther, scratchReg));
+		}
+	}
+
 	void CodeGenerator::validateMove(InstructionList* instructions, size_t i) {
 		std::shared_ptr<MoveInstruction> moveInstruction = static_pointer_cast<MoveInstruction>((*instructions)[i]);
-		if (moveInstruction->source->getType() == OperandType::Temp && moveInstruction->destination->getType() == OperandType::Temp) {
-			OperandPtr scratchReg = reg(Register::R10);
-			OperandPtr destination = moveInstruction->destination;
-			moveInstruction->destination = scratchReg;
-			instructions->emplace(instructions->begin() + i + 1, move(scratchReg, destination));
-		}
+		validateMoveOperands(instructions, i, moveInstruction->source, &moveInstruction->destination);
 	}
 
 	void CodeGenerator::validateAdd(InstructionList* instructions, size_t i) {
 		std::shared_ptr<AddInstruction> addInstruction = static_pointer_cast<AddInstruction>((*instructions)[i]);
-		if (addInstruction->destination->getType() == OperandType::Temp && addInstruction->other->getType() == OperandType::Temp) {
-			OperandPtr scratchReg = reg(Register::R10);
-			OperandPtr other = addInstruction->other;
-			addInstruction->other = scratchReg;
-			instructions->emplace(instructions->begin() + i, move(other, scratchReg));
-		}
+		validateBinOperands(instructions, i, addInstruction->destination, &addInstruction->other);
 	}
 
 	void CodeGenerator::validateSub(InstructionList* instructions, size_t i) {
 		std::shared_ptr<SubtractInstruction> subInstruction = static_pointer_cast<SubtractInstruction>((*instructions)[i]);
-		if (subInstruction->destination->getType() == OperandType::Temp && subInstruction->other->getType() == OperandType::Temp) {
-			OperandPtr scratchReg = reg(Register::R10);
-			OperandPtr other = subInstruction->other;
-			subInstruction->other = scratchReg;
-			instructions->emplace(instructions->begin() + i, move(other, scratchReg));
-		}
+		validateBinOperands(instructions, i, subInstruction->destination, &subInstruction->other);
 	}
 }

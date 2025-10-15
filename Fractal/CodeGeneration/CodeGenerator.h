@@ -49,6 +49,9 @@ namespace Fractal {
 		void validateMove(InstructionList* instructions, size_t i);
 		void validateAdd(InstructionList* instructions, size_t i);
 		void validateSub(InstructionList* instructions, size_t i);
+
+		void validateMoveOperands(InstructionList* instructions, size_t i, OperandPtr source, OperandPtr* destination);
+		void validateBinOperands(InstructionList* instructions, size_t i, OperandPtr source, OperandPtr* other);
 	private:
 		InstructionList m_instructions{};
 		ProgramFile m_program{};
