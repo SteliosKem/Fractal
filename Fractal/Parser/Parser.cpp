@@ -131,6 +131,7 @@ namespace Fractal {
 			return expressionLiteral(token);
 		case MINUS:
 		case BANG:
+		case TILDE:
 			return expressionUnary(token);
 		case LEFT_PARENTHESIS:
 			return expressionGroup(token);

@@ -16,7 +16,7 @@ namespace Fractal {
 		Move,
 		Return,
 		Negate,
-		Not
+		BitwiseNot
 	};
 
 	enum class OperandType {
@@ -134,12 +134,12 @@ namespace Fractal {
 		OperandPtr source;
 	};
 
-	class NotInstruction : public Instruction {
+	class BitwiseNotInstruction : public Instruction {
 	public:
-		NotInstruction(OperandPtr source) : source{ source } {}
-		INSTR_TYPE(Not)
+		BitwiseNotInstruction(OperandPtr source) : source{ source } {}
+		INSTR_TYPE(BitwiseNot)
 			virtual void print() const override {
-			std::cout << "Not ";
+			std::cout << "BW-Not ";
 			source->print();
 		}
 	public:

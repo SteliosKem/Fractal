@@ -5,7 +5,7 @@ Program execution starts from the first statement outside of the definitions hea
 <define>
 
 fn main(): i32 {
-    return -(-6);
+    return ~10;
 }
 
 <!define>

@@ -79,8 +79,8 @@ namespace Fractal {
 		case MINUS:
 			instructions->push_back(negate(destination));
 			break;
-		case BANG:
-			instructions->push_back(not_(destination));
+		case TILDE:
+			instructions->push_back(bitwiseNot(destination));
 			break;
 		}
 
@@ -102,8 +102,8 @@ namespace Fractal {
 		return std::make_shared<NegateInstruction>(source);
 	}
 
-	InstructionPtr CodeGenerator::not_(OperandPtr source) {
-		return std::make_shared<NotInstruction>(source);
+	InstructionPtr CodeGenerator::bitwiseNot(OperandPtr source) {
+		return std::make_shared<BitwiseNotInstruction>(source);
 	}
 
 	OperandPtr CodeGenerator::reg(Register register_) {

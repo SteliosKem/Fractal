@@ -32,7 +32,7 @@ namespace Fractal {
 		// -- INSTRUCTIONS --
 		InstructionPtr move(OperandPtr source, OperandPtr destination);
 		InstructionPtr negate(OperandPtr source);
-		InstructionPtr not_(OperandPtr source);
+		InstructionPtr bitwiseNot(OperandPtr source);
 		OperandPtr reg(Register register_);
 		OperandPtr intConst(int64_t integer);
 

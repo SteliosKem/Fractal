@@ -22,6 +22,7 @@ namespace Fractal {
 		void emitFunctionEpilogue();
 		void emitMove(InstructionPtr instruction);
 		void emitNegation(InstructionPtr instruction);
+		void emitBitwiseNot(InstructionPtr instruction);
 		void emitReturn();
 
 		std::string getOperandStr(OperandPtr operand);
