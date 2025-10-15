@@ -65,6 +65,7 @@ namespace Fractal {
 		switch (expression->getType()) {
 			case NodeType::IntegerLiteral: return generateIntConstant(expression, instructions);
 			case NodeType::UnaryOperation: return generateUnaryOperation(expression, instructions);
+			case NodeType::BinaryOperation: return generateBinaryOperation(expression, instructions);
 			default: return nullptr;
 		}
 	}
@@ -93,6 +94,21 @@ namespace Fractal {
 		return intConst(intLiteral->value);
 	}
 
+	OperandPtr CodeGenerator::generateBinaryOperation(ExpressionPtr expression, InstructionList* instructions) {
+		std::shared_ptr<BinaryOperation> binaryOp = static_pointer_cast<BinaryOperation>(expression);
+		std::shared_ptr<TempOperand> destination = std::make_shared<TempOperand>(allocateStack(Size::DWord));
+
+		instructions->push_back(move(generateExpression(binaryOp->left, instructions), destination));
+
+		switch (binaryOp->operatorToken.type) {
+		case PLUS:
+			instructions->push_back(add(destination, generateExpression(binaryOp->right, instructions)));
+			break;
+		}
+
+		return destination;
+	}
+
 
 	InstructionPtr CodeGenerator::move(OperandPtr source, OperandPtr destination) {
 		return std::make_shared<MoveInstruction>(source, destination);
@@ -104,6 +120,10 @@ namespace Fractal {
 
 	InstructionPtr CodeGenerator::bitwiseNot(OperandPtr source) {
 		return std::make_shared<BitwiseNotInstruction>(source);
+	}
+
+	InstructionPtr CodeGenerator::add(OperandPtr destination, OperandPtr other) {
+		return std::make_shared<AddInstruction>(destination, other);
 	}
 
 	OperandPtr CodeGenerator::reg(Register register_) {
@@ -126,6 +146,7 @@ namespace Fractal {
 			switch ((*instructions)[i]->getType()) {
 			case InstructionType::FunctionDefinition: validateFunction((*instructions)[i]); break;
 			case InstructionType::Move: validateMove(instructions, i); break;
+			case InstructionType::Add: validateAdd(instructions, i); break;
 			}
 		}
 	}
@@ -142,6 +163,16 @@ namespace Fractal {
 			OperandPtr destination = moveInstruction->destination;
 			moveInstruction->destination = scratchReg;
 			instructions->emplace(instructions->begin() + i + 1, move(scratchReg, destination));
+		}
+	}
+
+	void CodeGenerator::validateAdd(InstructionList* instructions, size_t i) {
+		std::shared_ptr<AddInstruction> addInstruction = static_pointer_cast<AddInstruction>((*instructions)[i]);
+		if (addInstruction->destination->getType() == OperandType::Temp && addInstruction->other->getType() == OperandType::Temp) {
+			OperandPtr scratchReg = reg(Register::R10);
+			OperandPtr other = addInstruction->other;
+			addInstruction->other = scratchReg;
+			instructions->emplace(instructions->begin() + i, move(other, scratchReg));
 		}
 	}
 }

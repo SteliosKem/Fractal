@@ -35,6 +35,7 @@ namespace Fractal {
 		case InstructionType::Move: emitMove(instruction); return;
 		case InstructionType::Negate: emitNegation(instruction); return;
 		case InstructionType::BitwiseNot: emitBitwiseNot(instruction); return;
+		case InstructionType::Add: emitAdd(instruction); return;
 		//case InstructionType::Return: emitReturn(); return;
 		default: return;
 		}
@@ -81,6 +82,12 @@ namespace Fractal {
 		std::shared_ptr<NegateInstruction> negInstruction = static_pointer_cast<NegateInstruction>(instruction);
 
 		writeILine("not " + getOperandStr(negInstruction->source));
+	}
+
+	void IntelCodeEmission::emitAdd(InstructionPtr instruction) {
+		std::shared_ptr<AddInstruction> addInstruction = static_pointer_cast<AddInstruction>(instruction);
+
+		writeILine("add " + getOperandStr(addInstruction->destination) + ", " + getOperandStr(addInstruction->other));
 	}
 
 	void IntelCodeEmission::emitReturn() {

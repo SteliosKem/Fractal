@@ -28,11 +28,13 @@ namespace Fractal {
 		OperandPtr generateExpression(ExpressionPtr expression, InstructionList* instructions);
 		OperandPtr generateUnaryOperation(ExpressionPtr expression, InstructionList* instructions);
 		OperandPtr generateIntConstant(ExpressionPtr expression, InstructionList* instructions);
+		OperandPtr generateBinaryOperation(ExpressionPtr expression, InstructionList* instructions);
 
 		// -- INSTRUCTIONS --
 		InstructionPtr move(OperandPtr source, OperandPtr destination);
 		InstructionPtr negate(OperandPtr source);
 		InstructionPtr bitwiseNot(OperandPtr source);
+		InstructionPtr add(OperandPtr destination, OperandPtr other);
 		OperandPtr reg(Register register_);
 		OperandPtr intConst(int64_t integer);
 
@@ -44,6 +46,7 @@ namespace Fractal {
 		void validateInstructions(InstructionList* instructions);
 		void validateFunction(InstructionPtr instruction);
 		void validateMove(InstructionList* instructions, size_t i);
+		void validateAdd(InstructionList* instructions, size_t i);
 	private:
 		InstructionList m_instructions{};
 		ProgramFile m_program{};

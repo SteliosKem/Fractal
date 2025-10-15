@@ -16,7 +16,12 @@ namespace Fractal {
 		Move,
 		Return,
 		Negate,
-		BitwiseNot
+		BitwiseNot,
+		Add,
+		Subtract,
+		Multiply,
+		Divide,
+		Remainder
 	};
 
 	enum class OperandType {
@@ -102,7 +107,7 @@ namespace Fractal {
 	public:
 		std::string name;
 		InstructionList instructions;
-		uint64_t stackAlloc;
+		uint64_t stackAlloc{ 0 };
 	};
 
 	class MoveInstruction : public Instruction {
@@ -144,6 +149,21 @@ namespace Fractal {
 		}
 	public:
 		OperandPtr source;
+	};
+
+	class AddInstruction : public Instruction {
+	public:
+		AddInstruction(OperandPtr destination, OperandPtr other) : destination{ destination }, other{ other } {}
+		INSTR_TYPE(Add)
+			virtual void print() const override {
+			std::cout << "add ";
+			other->print();
+			std::cout << " to ";
+			destination->print();
+		}
+	public:
+		OperandPtr destination;
+		OperandPtr other;
 	};
 
 	class ReturnInstruction : public Instruction {
