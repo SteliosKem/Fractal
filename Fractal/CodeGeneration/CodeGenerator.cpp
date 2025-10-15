@@ -107,6 +107,9 @@ namespace Fractal {
 		case MINUS:
 			instructions->push_back(sub(destination, generateExpression(binaryOp->right, instructions)));
 			break;
+		case STAR:
+			instructions->push_back(mul(destination, generateExpression(binaryOp->right, instructions)));
+			break;
 		}
 
 		return destination;
@@ -133,6 +136,10 @@ namespace Fractal {
 		return std::make_shared<SubtractInstruction>(destination, other);
 	}
 
+	InstructionPtr CodeGenerator::mul(OperandPtr destination, OperandPtr other) {
+		return std::make_shared<MultiplyInstruction>(destination, other);
+	}
+
 	OperandPtr CodeGenerator::reg(Register register_) {
 		return std::make_shared<RegisterOperand>(register_);
 	}
@@ -155,6 +162,7 @@ namespace Fractal {
 			case InstructionType::Move: validateMove(instructions, i); break;
 			case InstructionType::Add: validateAdd(instructions, i); break;
 			case InstructionType::Subtract: validateSub(instructions, i); break;
+			case InstructionType::Multiply: validateMul(instructions, i); break;
 			}
 		}
 	}
@@ -195,5 +203,16 @@ namespace Fractal {
 	void CodeGenerator::validateSub(InstructionList* instructions, size_t i) {
 		std::shared_ptr<SubtractInstruction> subInstruction = static_pointer_cast<SubtractInstruction>((*instructions)[i]);
 		validateBinOperands(instructions, i, subInstruction->destination, &subInstruction->other);
+	}
+
+	void CodeGenerator::validateMul(InstructionList* instructions, size_t i) {
+		std::shared_ptr<MultiplyInstruction> mulInstruction = static_pointer_cast<MultiplyInstruction>((*instructions)[i]);
+		if (mulInstruction->destination->getType() == OperandType::Temp) {
+			OperandPtr scratchReg = reg(Register::R11);
+			OperandPtr oldDestination = mulInstruction->destination;
+			mulInstruction->destination = scratchReg;
+			instructions->emplace(instructions->begin() + i, move(oldDestination, scratchReg));
+			instructions->emplace(instructions->begin() + i + 2, move(scratchReg, oldDestination));
+		}
 	}
 }

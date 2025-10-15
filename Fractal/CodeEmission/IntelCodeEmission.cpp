@@ -37,6 +37,7 @@ namespace Fractal {
 		case InstructionType::BitwiseNot: emitBitwiseNot(instruction); return;
 		case InstructionType::Add: emitAdd(instruction); return;
 		case InstructionType::Subtract: emitSub(instruction); return;
+		case InstructionType::Multiply: emitMul(instruction); return;
 		//case InstructionType::Return: emitReturn(); return;
 		default: return;
 		}
@@ -97,6 +98,12 @@ namespace Fractal {
 		writeILine("sub " + getOperandStr(subInstruction->destination) + ", " + getOperandStr(subInstruction->other));
 	}
 
+	void IntelCodeEmission::emitMul(InstructionPtr instruction) {
+		std::shared_ptr<SubtractInstruction> subInstruction = static_pointer_cast<SubtractInstruction>(instruction);
+
+		writeILine("imul " + getOperandStr(subInstruction->destination) + ", " + getOperandStr(subInstruction->other));
+	}
+
 	void IntelCodeEmission::emitReturn() {
 		writeILine("ret");
 	}
@@ -106,6 +113,7 @@ namespace Fractal {
 		switch (reg->reg) {
 		case Register::AX: return "eax";
 		case Register::R10: return "r10d";
+		case Register::R11: return "r11d";
 		default: return "";
 		}
 	}

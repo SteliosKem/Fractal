@@ -36,6 +36,7 @@ namespace Fractal {
 		InstructionPtr bitwiseNot(OperandPtr source);
 		InstructionPtr add(OperandPtr destination, OperandPtr other);
 		InstructionPtr sub(OperandPtr destination, OperandPtr other);
+		InstructionPtr mul(OperandPtr destination, OperandPtr other);
 		OperandPtr reg(Register register_);
 		OperandPtr intConst(int64_t integer);
 
@@ -49,6 +50,7 @@ namespace Fractal {
 		void validateMove(InstructionList* instructions, size_t i);
 		void validateAdd(InstructionList* instructions, size_t i);
 		void validateSub(InstructionList* instructions, size_t i);
+		void validateMul(InstructionList* instructions, size_t i);
 
 		void validateMoveOperands(InstructionList* instructions, size_t i, OperandPtr source, OperandPtr* destination);
 		void validateBinOperands(InstructionList* instructions, size_t i, OperandPtr source, OperandPtr* other);

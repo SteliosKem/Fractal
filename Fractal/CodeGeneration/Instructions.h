@@ -33,7 +33,8 @@ namespace Fractal {
 
 	enum class Register {
 		AX,
-		R10
+		R10,
+		R11
 	};
 
 	enum class Size : uint8_t {
@@ -174,6 +175,21 @@ namespace Fractal {
 			std::cout << "sub ";
 			other->print();
 			std::cout << " from ";
+			destination->print();
+		}
+	public:
+		OperandPtr destination;
+		OperandPtr other;
+	};
+
+	class MultiplyInstruction : public Instruction {
+	public:
+		MultiplyInstruction(OperandPtr destination, OperandPtr other) : destination{ destination }, other{ other } {}
+		INSTR_TYPE(Multiply)
+			virtual void print() const override {
+			std::cout << "mul ";
+			other->print();
+			std::cout << " with ";
 			destination->print();
 		}
 	public:
