@@ -40,6 +40,27 @@ namespace Fractal {
 		mainFunc->stackAlloc = m_currentStackIndex;
 	}
 
+	Size getTypeSize(TypePtr type) {
+		switch (type->typeInfo()) {
+			case TypeInfo::Fundamental: {
+				std::shared_ptr<FundamentalType> fundamentalType = static_pointer_cast<FundamentalType>(type);
+				switch (fundamentalType->type) {
+				case BasicType::I32: return Size::DWord;
+				case BasicType::I64: return Size::QWord;
+				}
+			}
+		}
+	}
+
+	void CodeGenerator::generateVariableDefinition(StatementPtr definition, InstructionList* instructions) {
+		std::shared_ptr<VariableDefinition> varDef = static_pointer_cast<VariableDefinition>(definition);
+		Size varSize = getTypeSize(varDef->variableType);
+		OperandPtr varPtr = std::make_shared<TempOperand>(allocateStack(varSize), varSize);
+		m_localVarMap[varDef->nameToken.value] = varPtr;
+		if (varDef->initializer)
+			instructions->push_back(move(generateExpression(varDef->initializer, instructions), varPtr));
+	}
+
 	InstructionPtr CodeGenerator::label(const std::string& name) {
 		return std::make_shared<Label>(name);
 	}
@@ -48,8 +69,15 @@ namespace Fractal {
 		switch (statement->getType()) {
 			case NodeType::ReturnStatement: generateReturnStatement(statement, instructions); return;
 			case NodeType::CompoundStatement: generateCompoundStatement(statement, instructions); return;
+			case NodeType::VariableDefinition: generateVariableDefinition(statement, instructions); return;
+			case NodeType::ExpressionStatement: generateExpressionStatement(statement, instructions); return;
 			default: return;
 		}
+	}
+
+	void CodeGenerator::generateExpressionStatement(StatementPtr statement, InstructionList* instructions) {
+		std::shared_ptr<ExpressionStatement> exprStatement = static_pointer_cast<ExpressionStatement>(statement);
+		generateExpression(exprStatement->expression, instructions);
 	}
 
 	void CodeGenerator::generateCompoundStatement(StatementPtr statement, InstructionList* instructions) {
@@ -71,8 +99,15 @@ namespace Fractal {
 			case NodeType::IntegerLiteral: return generateIntConstant(expression, instructions);
 			case NodeType::UnaryOperation: return generateUnaryOperation(expression, instructions);
 			case NodeType::BinaryOperation: return generateBinaryOperation(expression, instructions);
+			case NodeType::Assignment: return generateAssignment(expression, instructions);
+			case NodeType::Identifier: return getIdentifier(expression);
 			default: return nullptr;
 		}
+	}
+
+	OperandPtr CodeGenerator::getIdentifier(ExpressionPtr expression) {
+		std::shared_ptr<Identifier> id = static_pointer_cast<Identifier>(expression);
+		return m_localVarMap[id->idToken.value];
 	}
 
 	OperandPtr CodeGenerator::generateUnaryOperation(ExpressionPtr expression, InstructionList* instructions) {
@@ -215,6 +250,14 @@ namespace Fractal {
 		instructions->push_back(label(endLabel));
 
 		return destination;
+	}
+
+	OperandPtr CodeGenerator::generateAssignment(ExpressionPtr expression, InstructionList* instructions) {
+		std::shared_ptr<Assignment> assignment = static_pointer_cast<Assignment>(expression);
+		OperandPtr temp = generateExpression(assignment->right, instructions);
+		OperandPtr var = generateExpression(assignment->left, instructions);
+		instructions->push_back(move(temp, var));
+		return var;
 	}
 
 	uint64_t CodeGenerator::generateComparisonIndex() {

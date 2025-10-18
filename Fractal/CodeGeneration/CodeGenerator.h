@@ -18,11 +18,13 @@ namespace Fractal {
 		// -- DEFINITIONS --
 		void generateDefinition(DefinitionPtr definition, InstructionList* instructions);
 		void generateFunctionDefinition(DefinitionPtr definition, InstructionList* instructions);
+		void generateVariableDefinition(StatementPtr definition, InstructionList* instructions);
 
 		// -- STATEMENTS --
 		void generateStatement(StatementPtr statement, InstructionList* instructions);
 		void generateReturnStatement(StatementPtr statement, InstructionList* instructions);
 		void generateCompoundStatement(StatementPtr statement, InstructionList* instructions);
+		void generateExpressionStatement(StatementPtr statement, InstructionList* instructions);
 
 		// -- EXPRESSIONS --
 		OperandPtr generateExpression(ExpressionPtr expression, InstructionList* instructions);
@@ -32,6 +34,8 @@ namespace Fractal {
 		OperandPtr generateArithmeticOperation(std::shared_ptr<BinaryOperation> expression, InstructionList* instructions);
 		OperandPtr generateRelational(std::shared_ptr<BinaryOperation> expression, InstructionList* instructions);
 		OperandPtr generateLogical(std::shared_ptr<BinaryOperation> expression, InstructionList* instructions);
+		OperandPtr generateAssignment(ExpressionPtr expression, InstructionList* instructions);
+		OperandPtr getIdentifier(ExpressionPtr expression);
 		OperandPtr idiv(std::shared_ptr<BinaryOperation> division, InstructionList* instructions);
 
 		// -- INSTRUCTIONS --
@@ -73,6 +77,7 @@ namespace Fractal {
 		InstructionList m_instructions{};
 		ProgramFile m_program{};
 		int64_t m_currentStackIndex{};
+		std::unordered_map<std::string, OperandPtr> m_localVarMap{};
 		uint64_t m_currentComparisonIndex{};
 
 		ErrorHandler* m_errorHandler{ nullptr };
