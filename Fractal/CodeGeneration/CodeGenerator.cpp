@@ -40,6 +40,10 @@ namespace Fractal {
 		mainFunc->stackAlloc = m_currentStackIndex;
 	}
 
+	InstructionPtr CodeGenerator::label(const std::string& name) {
+		return std::make_shared<Label>(name);
+	}
+
 	void CodeGenerator::generateStatement(StatementPtr statement, InstructionList* instructions) {
 		switch (statement->getType()) {
 			case NodeType::ReturnStatement: generateReturnStatement(statement, instructions); return;
@@ -114,8 +118,7 @@ namespace Fractal {
 				return generateRelational(binaryOp, instructions);
 			case OR:
 			case AND:
-			break;
-				//return generateLogical(binaryOp, instructions);
+				return generateLogical(binaryOp, instructions);
 		}
 
 	}
@@ -167,6 +170,57 @@ namespace Fractal {
 		return destination;
 	}
 
+	OperandPtr CodeGenerator::generateLogical(std::shared_ptr<BinaryOperation> expression, InstructionList* instructions) {
+		std::shared_ptr<TempOperand> destination = std::make_shared<TempOperand>(allocateStack(Size::DWord), Size::DWord);
+
+		uint64_t index = generateComparisonIndex();
+		std::string falseLabel = ".CF" + std::to_string(index);
+		std::string trueLabel = ".CT" + std::to_string(index);
+		std::string endLabel = ".CE" + std::to_string(index);
+
+		if (expression->operatorToken.type == AND) {
+			OperandPtr a = generateExpression(expression->left, instructions);
+			instructions->push_back(cmp(a, std::make_shared<IntegerConstant>(0)));
+			instructions->push_back(jmp(falseLabel, ComparisonType::Equal));
+			OperandPtr b = generateExpression(expression->right, instructions);
+			instructions->push_back(cmp(b, std::make_shared<IntegerConstant>(0)));
+			instructions->push_back(jmp(falseLabel, ComparisonType::Equal));
+
+			// Only happens if true
+			instructions->push_back(move(std::make_shared<IntegerConstant>(1), destination));
+			instructions->push_back(jmp(endLabel, ComparisonType::None));
+
+			// False label
+			instructions->push_back(label(falseLabel));
+			instructions->push_back(move(std::make_shared<IntegerConstant>(0), destination));
+		}
+		else {
+			OperandPtr a = generateExpression(expression->left, instructions);
+			instructions->push_back(cmp(a, std::make_shared<IntegerConstant>(1)));
+			instructions->push_back(jmp(trueLabel, ComparisonType::Equal));
+			OperandPtr b = generateExpression(expression->right, instructions);
+			instructions->push_back(cmp(b, std::make_shared<IntegerConstant>(1)));
+			instructions->push_back(jmp(trueLabel, ComparisonType::Equal));
+
+			// Only happens if false
+			instructions->push_back(move(std::make_shared<IntegerConstant>(0), destination));
+			instructions->push_back(jmp(endLabel, ComparisonType::None));
+
+			// True label
+			instructions->push_back(label(trueLabel));
+			instructions->push_back(move(std::make_shared<IntegerConstant>(1), destination));
+		}
+
+		// End
+		instructions->push_back(label(endLabel));
+
+		return destination;
+	}
+
+	uint64_t CodeGenerator::generateComparisonIndex() {
+		return m_currentComparisonIndex++;
+	}
+
 	InstructionPtr CodeGenerator::move(OperandPtr source, OperandPtr destination) {
 		return std::make_shared<MoveInstruction>(source, destination);
 	}
@@ -212,6 +266,10 @@ namespace Fractal {
 
 	InstructionPtr CodeGenerator::set(OperandPtr operand, ComparisonType type) {
 		return std::make_shared<SetInstruction>(operand, type);
+	}
+
+	InstructionPtr CodeGenerator::jmp(const std::string& label, ComparisonType type) {
+		return std::make_shared<JumpInstruction>(label, type);
 	}
 
 	OperandPtr CodeGenerator::intConst(int64_t integer) {

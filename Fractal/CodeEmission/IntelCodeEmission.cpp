@@ -43,6 +43,8 @@ namespace Fractal {
 		case InstructionType::Divide: emitIdiv(instruction); return;
 		case InstructionType::Compare: emitCmp(instruction); return;
 		case InstructionType::Set: emitSet(instruction); return;
+		case InstructionType::Jump: emitJmp(instruction); return;
+		case InstructionType::Label: emitLabel(instruction); return;
 		//case InstructionType::Return: emitReturn(); return;
 		default: return;
 		}
@@ -138,6 +140,18 @@ namespace Fractal {
 		writeILine("set" + getComparisonType(setInstruction->type) + " " + getOperandStr(setInstruction->destination));
 	}
 
+	void IntelCodeEmission::emitJmp(InstructionPtr instruction) {
+		std::shared_ptr<JumpInstruction> jmpInstruction = static_pointer_cast<JumpInstruction>(instruction);
+
+		writeILine("j" + getComparisonType(jmpInstruction->type) + " " + jmpInstruction->label);
+	}
+
+	void IntelCodeEmission::emitLabel(InstructionPtr instruction) {
+		std::shared_ptr<Label> label = static_pointer_cast<Label>(instruction);
+
+		writeLine(label->name + ":");
+	}
+
 	void IntelCodeEmission::emitReturn() {
 		writeILine("ret");
 	}
@@ -187,6 +201,7 @@ namespace Fractal {
 			case ComparisonType::GreaterEqual: return "ge";
 			case ComparisonType::Less: return "l";
 			case ComparisonType::LessEqual: return "le";
+			case ComparisonType::None: return "mp";
 		}
 		return "";
 	}

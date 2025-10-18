@@ -225,6 +225,8 @@ namespace Fractal {
 			case BANG_EQUAL:
 			case GREATER_EQUAL:
 			case LESS_EQUAL:
+			case OR:
+			case AND:
 			case SLASH: {
 				BindingPower bindingPower = tokenBindingPower(token);
 				ExpressionPtr right = parseExpression(bindingPower);
@@ -285,6 +287,7 @@ namespace Fractal {
 		Token* token = m_currentToken;
 		advance();
 		StatementPtr statement = std::make_shared<ReturnStatement>(parseExpression(), *token);
+		std::cout << currentToken().value << "\n";
 		CONSUME_SEMICOLON();
 		return statement;
 	}

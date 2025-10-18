@@ -24,7 +24,9 @@ namespace Fractal {
 		Remainder,
 		Cdq,
 		Compare,
-		Set
+		Set,
+		Jump,
+		Label
 	};
 
 	enum class OperandType {
@@ -56,7 +58,8 @@ namespace Fractal {
 		Greater,
 		GreaterEqual,
 		Less,
-		LessEqual
+		LessEqual,
+		None
 	};
 
 #define INSTR_TYPE(x) InstructionType getType() const override { return InstructionType::x; }
@@ -147,6 +150,17 @@ namespace Fractal {
 		OperandPtr source;
 		OperandPtr destination;
 		bool signExtend{ false };
+	};
+
+	class Label : public Instruction {
+	public:
+		Label(const std::string& name) : name{ name } {}
+		INSTR_TYPE(Label)
+			virtual void print() const override {
+			std::cout << "label " << name << ":\n";
+		}
+	public:
+		std::string name;
 	};
 
 	class NegateInstruction : public Instruction {
@@ -255,6 +269,18 @@ namespace Fractal {
 		}
 	public:
 		OperandPtr destination;
+		ComparisonType type;
+	};
+
+	class JumpInstruction : public Instruction {
+	public:
+		JumpInstruction(const std::string& label, ComparisonType type) : label{ label }, type{ type } {}
+		INSTR_TYPE(Jump)
+			virtual void print() const override {
+			std::cout << "jump " << label;
+		}
+	public:
+		std::string label;
 		ComparisonType type;
 	};
 

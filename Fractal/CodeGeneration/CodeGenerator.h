@@ -43,8 +43,10 @@ namespace Fractal {
 		InstructionPtr mul(OperandPtr destination, OperandPtr other);
 		InstructionPtr cmp(OperandPtr left, OperandPtr right);
 		InstructionPtr set(OperandPtr operand, ComparisonType type);
+		InstructionPtr jmp(const std::string& label, ComparisonType type);
 		OperandPtr reg(Register register_, Size size = Size::DWord);
 		OperandPtr intConst(int64_t integer);
+		InstructionPtr label(const std::string& name);
 
 		// -- STACK --
 		int64_t allocateStack(Size size);
@@ -62,10 +64,17 @@ namespace Fractal {
 
 		void validateMoveOperands(InstructionList* instructions, size_t i, OperandPtr source, OperandPtr* destination);
 		void validateBinOperands(InstructionList* instructions, size_t i, OperandPtr source, OperandPtr* other);
+
+		// -- LABELS --
+		uint64_t generateComparisonIndex();
+		uint64_t generateIfIndex();
+		uint64_t generateLoopIndex();
 	private:
 		InstructionList m_instructions{};
 		ProgramFile m_program{};
 		int64_t m_currentStackIndex{};
+		uint64_t m_currentComparisonIndex{};
+
 		ErrorHandler* m_errorHandler{ nullptr };
 	};
 }

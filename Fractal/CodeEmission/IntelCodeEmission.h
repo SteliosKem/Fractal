@@ -35,6 +35,8 @@ namespace Fractal {
 		void emitCmp(InstructionPtr instruction);
 		void emitSet(InstructionPtr instruction);
 		void emitIdiv(InstructionPtr instruction);
+		void emitJmp(InstructionPtr instruction);
+		void emitLabel(InstructionPtr instruction);
 		void emitReturn();
 
 		std::string getOperandStr(OperandPtr operand);
