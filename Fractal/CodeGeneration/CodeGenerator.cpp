@@ -38,6 +38,9 @@ namespace Fractal {
 
 		instructions->push_back(mainFunc);
 		mainFunc->stackAlloc = m_currentStackIndex;
+
+		mainFunc->instructions.push_back(move(std::make_shared<IntegerConstant>(0), reg(Register::AX, Size::DWord)));
+		mainFunc->instructions.push_back(std::make_shared<ReturnInstruction>());
 	}
 
 	Size getTypeSize(TypePtr type) {
@@ -71,6 +74,7 @@ namespace Fractal {
 			case NodeType::CompoundStatement: generateCompoundStatement(statement, instructions); return;
 			case NodeType::VariableDefinition: generateVariableDefinition(statement, instructions); return;
 			case NodeType::ExpressionStatement: generateExpressionStatement(statement, instructions); return;
+			case NodeType::IfStatement: generateIfStatement(statement, instructions); return;
 			default: return;
 		}
 	}
@@ -92,6 +96,29 @@ namespace Fractal {
 
 		instructions->push_back(move(generateExpression(returnStatement->expression, instructions), reg(Register::AX)));
 		instructions->push_back(std::make_shared<ReturnInstruction>());
+	}
+
+	void CodeGenerator::generateIfStatement(StatementPtr statement, InstructionList* instructions) {
+		std::shared_ptr<IfStatement> ifStatement = static_pointer_cast<IfStatement>(statement);
+
+		uint64_t index = generateIfIndex();
+		std::string falseLabel = ".IF" + std::to_string(index);
+		std::string trueLabel = ".IT" + std::to_string(index);
+		std::string endLabel = ".IE" + std::to_string(index);
+
+		if (!ifStatement->elseBody) falseLabel = endLabel;
+
+		OperandPtr temp = generateExpression(ifStatement->condition, instructions);
+		instructions->push_back(cmp(temp, std::make_shared<IntegerConstant>(0)));
+		instructions->push_back(jmp(falseLabel, ComparisonType::Equal));
+		generateStatement(ifStatement->ifBody, instructions);
+
+		if (ifStatement->elseBody) {
+			instructions->push_back(jmp(endLabel, ComparisonType::None));
+			instructions->push_back(label(falseLabel));
+			generateStatement(ifStatement->elseBody, instructions);
+		}
+		instructions->push_back(label(endLabel));
 	}
 
 	OperandPtr CodeGenerator::generateExpression(ExpressionPtr expression, InstructionList* instructions) {
@@ -262,6 +289,10 @@ namespace Fractal {
 
 	uint64_t CodeGenerator::generateComparisonIndex() {
 		return m_currentComparisonIndex++;
+	}
+
+	uint64_t CodeGenerator::generateIfIndex() {
+		return m_currentIfIndex++;
 	}
 
 	InstructionPtr CodeGenerator::move(OperandPtr source, OperandPtr destination) {

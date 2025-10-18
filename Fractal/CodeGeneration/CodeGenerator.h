@@ -25,6 +25,7 @@ namespace Fractal {
 		void generateReturnStatement(StatementPtr statement, InstructionList* instructions);
 		void generateCompoundStatement(StatementPtr statement, InstructionList* instructions);
 		void generateExpressionStatement(StatementPtr statement, InstructionList* instructions);
+		void generateIfStatement(StatementPtr statement, InstructionList* instructions);
 
 		// -- EXPRESSIONS --
 		OperandPtr generateExpression(ExpressionPtr expression, InstructionList* instructions);
@@ -79,6 +80,8 @@ namespace Fractal {
 		int64_t m_currentStackIndex{};
 		std::unordered_map<std::string, OperandPtr> m_localVarMap{};
 		uint64_t m_currentComparisonIndex{};
+		uint64_t m_currentIfIndex{};
+		uint64_t m_currentLoopIndex{};
 
 		ErrorHandler* m_errorHandler{ nullptr };
 	};

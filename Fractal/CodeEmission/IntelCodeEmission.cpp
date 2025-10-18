@@ -45,7 +45,7 @@ namespace Fractal {
 		case InstructionType::Set: emitSet(instruction); return;
 		case InstructionType::Jump: emitJmp(instruction); return;
 		case InstructionType::Label: emitLabel(instruction); return;
-		//case InstructionType::Return: emitReturn(); return;
+		case InstructionType::Return: emitFunctionEpilogue(); emitReturn(); return;
 		default: return;
 		}
 	}
@@ -66,8 +66,6 @@ namespace Fractal {
 
 		for (auto instruction : functionDefinition->instructions)
 			emitInstruction(instruction);
-		emitFunctionEpilogue();
-		emitReturn();
 	}
 
 	void IntelCodeEmission::emitFunctionPrologue(uint64_t stackAlloc) {

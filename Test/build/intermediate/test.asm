@@ -3,31 +3,26 @@ global main
 main:
     push rbp
     mov rbp, rsp
-    sub rsp, 28
-    mov DWORD [rbp - 8], 5
-    add DWORD [rbp - 8], 1
-    mov r10d, DWORD [rbp - 8]
-    mov DWORD [rbp - 4], r10d
-    mov DWORD [rbp - 16], 9
-    mov r11d, DWORD [rbp - 16]
-    imul r11d, 2
-    mov DWORD [rbp - 16], r11d
-    mov r10d, DWORD [rbp - 16]
-    mov DWORD [rbp - 12], r10d
-    add DWORD [rbp - 12], 1
-    mov r10d, DWORD [rbp - 12]
-    mov DWORD [rbp - 4], r10d
-    mov DWORD [rbp - 20], 100
-    mov r10d, DWORD [rbp - 4]
-    mov DWORD [rbp - 24], r10d
-    mov r10d, DWORD [rbp - 20]
-    mov DWORD [rbp - 28], r10d
-    mov r11d, DWORD [rbp - 28]
-    imul r11d, 2
-    mov DWORD [rbp - 28], r11d
-    mov r10d, DWORD [rbp - 28]
-    add DWORD [rbp - 24], r10d
-    mov eax, DWORD [rbp - 24]
+    sub rsp, 8
+    mov DWORD [rbp - 4], 5
+    mov eax, DWORD [rbp - 4]
+    cmp eax, 5
+    sete BYTE [rbp - 8]
+    movsx eax, BYTE [rbp - 8]
+    mov eax, eax
+    cmp eax, 0
+    je .IF0
+    mov DWORD [rbp - 4], 8
+    mov DWORD [rbp - 4], 5
+    jmp .IE0
+.IF0:
+    mov DWORD [rbp - 4], 1
+.IE0:
+    mov eax, DWORD [rbp - 4]
+    mov rsp, rbp
+    pop rbp
+    ret
+    mov eax, 0
     mov rsp, rbp
     pop rbp
     ret
