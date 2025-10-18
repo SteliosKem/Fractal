@@ -16,6 +16,7 @@ namespace Fractal {
 			generateStatement(statement, &mainFunc->instructions);
 
 		validateInstructions(&m_instructions);
+		validateInstructions(&m_instructions);
 
 		return m_instructions;
 	}
@@ -72,7 +73,7 @@ namespace Fractal {
 
 	OperandPtr CodeGenerator::generateUnaryOperation(ExpressionPtr expression, InstructionList* instructions) {
 		std::shared_ptr<UnaryOperation> unaryOp = static_pointer_cast<UnaryOperation>(expression);
-		std::shared_ptr<TempOperand> destination = std::make_shared<TempOperand>(allocateStack(Size::DWord));
+		std::shared_ptr<TempOperand> destination = std::make_shared<TempOperand>(allocateStack(Size::DWord), Size::DWord);
 
 		instructions->push_back(move(generateExpression(unaryOp->expression, instructions), destination));
 
@@ -96,25 +97,75 @@ namespace Fractal {
 
 	OperandPtr CodeGenerator::generateBinaryOperation(ExpressionPtr expression, InstructionList* instructions) {
 		std::shared_ptr<BinaryOperation> binaryOp = static_pointer_cast<BinaryOperation>(expression);
-		std::shared_ptr<TempOperand> destination = std::make_shared<TempOperand>(allocateStack(Size::DWord));
-
-		instructions->push_back(move(generateExpression(binaryOp->left, instructions), destination));
 
 		switch (binaryOp->operatorToken.type) {
-		case PLUS:
-			instructions->push_back(add(destination, generateExpression(binaryOp->right, instructions)));
+			case PLUS:
+			case MINUS:
+			case STAR:
+				return generateArithmeticOperation(binaryOp, instructions);
+			case SLASH:
+				return idiv(binaryOp, instructions);
+			case LESS:
+			case LESS_EQUAL:
+			case GREATER:
+			case GREATER_EQUAL:
+			case EQUAL_EQUAL:
+			case BANG_EQUAL:
+				return generateRelational(binaryOp, instructions);
+			case OR:
+			case AND:
 			break;
-		case MINUS:
-			instructions->push_back(sub(destination, generateExpression(binaryOp->right, instructions)));
-			break;
-		case STAR:
-			instructions->push_back(mul(destination, generateExpression(binaryOp->right, instructions)));
-			break;
+				//return generateLogical(binaryOp, instructions);
+		}
+
+	}
+	
+	OperandPtr CodeGenerator::generateArithmeticOperation(std::shared_ptr<BinaryOperation> expression, InstructionList* instructions) {
+		std::shared_ptr<TempOperand> destination = std::make_shared<TempOperand>(allocateStack(Size::DWord), Size::DWord);
+		instructions->push_back(move(generateExpression(expression->left, instructions), destination));
+
+		switch (expression->operatorToken.type) {
+			case PLUS:
+				instructions->push_back(add(destination, generateExpression(expression->right, instructions)));
+				break;
+			case MINUS:
+				instructions->push_back(sub(destination, generateExpression(expression->right, instructions)));
+				break;
+			case STAR:
+				instructions->push_back(mul(destination, generateExpression(expression->right, instructions)));
+				break;
 		}
 
 		return destination;
 	}
 
+	ComparisonType getComparisonType(TokenType tokType) {
+		switch(tokType) {
+			case EQUAL_EQUAL:
+				return ComparisonType::Equal;
+			case BANG_EQUAL:
+				return ComparisonType::NotEqual;
+			case GREATER:
+				return ComparisonType::Greater;
+			case GREATER_EQUAL:
+				return ComparisonType::GreaterEqual;
+			case LESS:
+				return ComparisonType::Less;
+			case LESS_EQUAL:
+				return ComparisonType::LessEqual;
+			default:
+				break;
+		}
+	}
+
+	OperandPtr CodeGenerator::generateRelational(std::shared_ptr<BinaryOperation> expression, InstructionList* instructions) {
+		std::shared_ptr<TempOperand> destination = std::make_shared<TempOperand>(allocateStack(Size::DWord), Size::Byte);
+		ComparisonType type = getComparisonType(expression->operatorToken.type);
+		instructions->push_back(cmp(generateExpression(expression->left, instructions)
+			, generateExpression(expression->right, instructions)));
+		instructions->push_back(set(destination, type));
+		return destination;
+	}
 
 	InstructionPtr CodeGenerator::move(OperandPtr source, OperandPtr destination) {
 		return std::make_shared<MoveInstruction>(source, destination);
@@ -140,8 +191,27 @@ namespace Fractal {
 		return std::make_shared<MultiplyInstruction>(destination, other);
 	}
 
-	OperandPtr CodeGenerator::reg(Register register_) {
-		return std::make_shared<RegisterOperand>(register_);
+	OperandPtr CodeGenerator::idiv(std::shared_ptr<BinaryOperation> division, InstructionList* instructions) {
+		OperandPtr right = generateExpression(division->right, instructions);
+		std::shared_ptr<TempOperand> temp = std::make_shared<TempOperand>(allocateStack(Size::DWord), Size::DWord);
+		instructions->push_back(move(right, temp));
+		OperandPtr left = generateExpression(division->left, instructions);
+		instructions->push_back(move(left, reg(Register::AX)));
+		instructions->push_back(std::make_shared<CdqInstruction>());
+		instructions->push_back(std::make_shared<DivInstruction>(temp));
+		return reg(Register::AX);
+	}
+
+	OperandPtr CodeGenerator::reg(Register register_, Size size) {
+		return std::make_shared<RegisterOperand>(register_, size);
+	}
+
+	InstructionPtr CodeGenerator::cmp(OperandPtr left, OperandPtr right) {
+		return std::make_shared<CompareInstruction>(left, right);
+	}
+
+	InstructionPtr CodeGenerator::set(OperandPtr operand, ComparisonType type) {
+		return std::make_shared<SetInstruction>(operand, type);
 	}
 
 	OperandPtr CodeGenerator::intConst(int64_t integer) {
@@ -163,6 +233,8 @@ namespace Fractal {
 			case InstructionType::Add: validateAdd(instructions, i); break;
 			case InstructionType::Subtract: validateSub(instructions, i); break;
 			case InstructionType::Multiply: validateMul(instructions, i); break;
+			case InstructionType::Divide: validateDiv(instructions, i); break;
+			case InstructionType::Compare: validateCmp(instructions, i); break;
 			}
 		}
 	}
@@ -172,8 +244,12 @@ namespace Fractal {
 		validateInstructions(&func->instructions);
 	}
 
+	bool isTemp(OperandPtr operand) {
+		return operand->getType() == OperandType::Temp;
+	}
+
 	void CodeGenerator::validateMoveOperands(InstructionList* instructions, size_t i, OperandPtr source, OperandPtr* destination) {
-		if (source->getType() == OperandType::Temp && (*destination)->getType() == OperandType::Temp) {
+		if (isTemp(source) && isTemp(*destination)) {
 			OperandPtr scratchReg = reg(Register::R10);
 			OperandPtr oldDestination = *destination;
 			*destination = scratchReg;
@@ -182,7 +258,7 @@ namespace Fractal {
 	}
 
 	void CodeGenerator::validateBinOperands(InstructionList* instructions, size_t i, OperandPtr source, OperandPtr* other) {
-		if (source->getType() == OperandType::Temp && (*other)->getType() == OperandType::Temp) {
+		if (isTemp(source) && isTemp(*other)) {
 			OperandPtr scratchReg = reg(Register::R10);
 			OperandPtr oldOther = *other;
 			*other = scratchReg;
@@ -192,7 +268,15 @@ namespace Fractal {
 
 	void CodeGenerator::validateMove(InstructionList* instructions, size_t i) {
 		std::shared_ptr<MoveInstruction> moveInstruction = static_pointer_cast<MoveInstruction>((*instructions)[i]);
-		validateMoveOperands(instructions, i, moveInstruction->source, &moveInstruction->destination);
+		if(moveInstruction->destination->getSize() > moveInstruction->source->getSize()) {
+			OperandPtr scratchReg = reg(Register::AX, moveInstruction->destination->getSize());
+			OperandPtr oldDest = moveInstruction->destination;
+			moveInstruction->destination = scratchReg;
+			moveInstruction->signExtend = true;
+			instructions->emplace(instructions->begin() + i + 1, move(scratchReg, oldDest));
+		}
+		else
+			validateMoveOperands(instructions, i, moveInstruction->source, &moveInstruction->destination);
 	}
 
 	void CodeGenerator::validateAdd(InstructionList* instructions, size_t i) {
@@ -207,12 +291,27 @@ namespace Fractal {
 
 	void CodeGenerator::validateMul(InstructionList* instructions, size_t i) {
 		std::shared_ptr<MultiplyInstruction> mulInstruction = static_pointer_cast<MultiplyInstruction>((*instructions)[i]);
-		if (mulInstruction->destination->getType() == OperandType::Temp) {
+		if (isTemp(mulInstruction->destination)) {
 			OperandPtr scratchReg = reg(Register::R11);
 			OperandPtr oldDestination = mulInstruction->destination;
 			mulInstruction->destination = scratchReg;
 			instructions->emplace(instructions->begin() + i, move(oldDestination, scratchReg));
 			instructions->emplace(instructions->begin() + i + 2, move(scratchReg, oldDestination));
+		}
+	}
+
+	void CodeGenerator::validateDiv(InstructionList* instructions, size_t i) {
+
+	}
+
+	void CodeGenerator::validateCmp(InstructionList* instructions, size_t i) {
+		std::shared_ptr<CompareInstruction> cmpInstruction = static_pointer_cast<CompareInstruction>((*instructions)[i]);
+		if (cmpInstruction->left->getType() == OperandType::IntegerConstant
+			|| isTemp(cmpInstruction->left)) {
+			OperandPtr scratchReg = reg(Register::AX);
+			OperandPtr oldLeft = cmpInstruction->left;
+			cmpInstruction->left = scratchReg;
+			instructions->emplace(instructions->begin() + i, move(oldLeft, scratchReg));
 		}
 	}
 }

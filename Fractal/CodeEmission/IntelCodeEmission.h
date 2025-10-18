@@ -26,6 +26,10 @@ namespace Fractal {
 		void emitAdd(InstructionPtr instruction);
 		void emitSub(InstructionPtr instruction);
 		void emitMul(InstructionPtr instruction);
+		void emitCdq();
+		void emitCmp(InstructionPtr instruction);
+		void emitSet(InstructionPtr instruction);
+		void emitIdiv(InstructionPtr instruction);
 		void emitReturn();
 
 		std::string getOperandStr(OperandPtr operand);
@@ -35,6 +39,7 @@ namespace Fractal {
 
 		void write(const std::string& text);
 		void writeLine(const std::string& line);
+		std::string getComparisonType(ComparisonType type);
 
 		// Write Indented Line
 		void writeILine(const std::string& line);

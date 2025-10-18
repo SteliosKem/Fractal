@@ -21,7 +21,10 @@ namespace Fractal {
 		Subtract,
 		Multiply,
 		Divide,
-		Remainder
+		Remainder,
+		Cdq,
+		Compare,
+		Set
 	};
 
 	enum class OperandType {
@@ -33,8 +36,11 @@ namespace Fractal {
 
 	enum class Register {
 		AX,
+		BX,
+		DX,
 		R10,
-		R11
+		R11,
+		R9
 	};
 
 	enum class Size : uint8_t {
@@ -44,12 +50,22 @@ namespace Fractal {
 		QWord = 8
 	};
 
+	enum class ComparisonType {
+		Equal,
+		NotEqual,
+		Greater,
+		GreaterEqual,
+		Less,
+		LessEqual
+	};
+
 #define INSTR_TYPE(x) InstructionType getType() const override { return InstructionType::x; }
 
 	class Operand {
 	public:
 		virtual ~Operand() = default;
 		virtual OperandType getType() const { return OperandType::Operand; }
+		virtual Size getSize() const { return Size::DWord; }
 		virtual void print() const {}
 	};
 
@@ -66,20 +82,24 @@ namespace Fractal {
 
 	class RegisterOperand : public Operand {
 	public:
-		RegisterOperand(Register reg) : reg{ reg } {}
+		RegisterOperand(Register reg, Size size = Size::DWord) : reg{ reg }, size{ size } {}
 		virtual OperandType getType() const override { return OperandType::Register; }
 		void print() const override { std::cout << '%' << (int)reg; }
+		virtual Size getSize() const override { return size; }
 	public:
 		Register reg;
+		Size size;
 	};
 
 	class TempOperand : public Operand {
 	public:
-		TempOperand(int64_t stackOffest) : stackOffest{ stackOffest } {}
+		TempOperand(int64_t stackOffest, Size size) : stackOffest{ stackOffest }, size{ size } {}
 		virtual OperandType getType() const override { return OperandType::Temp; }
 		void print() const override { std::cout << "Stack access " << stackOffest; }
+		virtual Size getSize() const override { return size; }
 	public:
 		int64_t stackOffest;
+		Size size;
 	};
 
 	class Instruction {
@@ -126,6 +146,7 @@ namespace Fractal {
 	public:
 		OperandPtr source;
 		OperandPtr destination;
+		bool signExtend{ false };
 	};
 
 	class NegateInstruction : public Instruction {
@@ -197,12 +218,61 @@ namespace Fractal {
 		OperandPtr other;
 	};
 
+	class DivInstruction : public Instruction {
+	public:
+		DivInstruction(OperandPtr destination) : destination{ destination } {}
+		INSTR_TYPE(Divide)
+			virtual void print() const override {
+			std::cout << "idiv ";
+			destination->print();
+		}
+	public:
+		OperandPtr destination;
+	};
+
+	class CompareInstruction : public Instruction {
+	public:
+		CompareInstruction(OperandPtr left, OperandPtr right) : left{ left }, right{ right } {}
+		INSTR_TYPE(Compare)
+			virtual void print() const override {
+			std::cout << "cmp ";
+			left->print();
+			std::cout << " with ";
+			right->print();
+		}
+	public:
+		OperandPtr left;
+		OperandPtr right;
+	};
+
+	class SetInstruction : public Instruction {
+	public:
+		SetInstruction(OperandPtr destination, ComparisonType type) : destination{ destination }, type{ type } {}
+		INSTR_TYPE(Set)
+			virtual void print() const override {
+			std::cout << "set ";
+			destination->print();
+		}
+	public:
+		OperandPtr destination;
+		ComparisonType type;
+	};
+
 	class ReturnInstruction : public Instruction {
 	public:
 		ReturnInstruction() = default;
 		INSTR_TYPE(Return)
 		virtual void print() const override {
 			std::cout << "Ret\n";
+		}
+	};
+
+	class CdqInstruction : public Instruction {
+	public:
+		CdqInstruction() = default;
+		INSTR_TYPE(Cdq)
+		virtual void print() const override {
+			std::cout << "cdq\n";
 		}
 	};
 }

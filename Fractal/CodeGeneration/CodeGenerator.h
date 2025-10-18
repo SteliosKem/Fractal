@@ -29,6 +29,10 @@ namespace Fractal {
 		OperandPtr generateUnaryOperation(ExpressionPtr expression, InstructionList* instructions);
 		OperandPtr generateIntConstant(ExpressionPtr expression, InstructionList* instructions);
 		OperandPtr generateBinaryOperation(ExpressionPtr expression, InstructionList* instructions);
+		OperandPtr generateArithmeticOperation(std::shared_ptr<BinaryOperation> expression, InstructionList* instructions);
+		OperandPtr generateRelational(std::shared_ptr<BinaryOperation> expression, InstructionList* instructions);
+		OperandPtr generateLogical(std::shared_ptr<BinaryOperation> expression, InstructionList* instructions);
+		OperandPtr idiv(std::shared_ptr<BinaryOperation> division, InstructionList* instructions);
 
 		// -- INSTRUCTIONS --
 		InstructionPtr move(OperandPtr source, OperandPtr destination);
@@ -37,7 +41,9 @@ namespace Fractal {
 		InstructionPtr add(OperandPtr destination, OperandPtr other);
 		InstructionPtr sub(OperandPtr destination, OperandPtr other);
 		InstructionPtr mul(OperandPtr destination, OperandPtr other);
-		OperandPtr reg(Register register_);
+		InstructionPtr cmp(OperandPtr left, OperandPtr right);
+		InstructionPtr set(OperandPtr operand, ComparisonType type);
+		OperandPtr reg(Register register_, Size size = Size::DWord);
 		OperandPtr intConst(int64_t integer);
 
 		// -- STACK --
@@ -51,6 +57,8 @@ namespace Fractal {
 		void validateAdd(InstructionList* instructions, size_t i);
 		void validateSub(InstructionList* instructions, size_t i);
 		void validateMul(InstructionList* instructions, size_t i);
+		void validateDiv(InstructionList* instructions, size_t i);
+		void validateCmp(InstructionList* instructions, size_t i);
 
 		void validateMoveOperands(InstructionList* instructions, size_t i, OperandPtr source, OperandPtr* destination);
 		void validateBinOperands(InstructionList* instructions, size_t i, OperandPtr source, OperandPtr* other);
