@@ -5,7 +5,8 @@
 #include "IntelCodeEmission.h"
 
 namespace Fractal {
-	const std::string& IntelCodeEmission::emit(const InstructionList* instructions) {
+	const std::string& IntelCodeEmission::emit(const InstructionList* instructions, Platform platform) {
+		m_platform = platform;
 		m_instructions = instructions;
 
 		writeLine("section .text");
@@ -50,8 +51,14 @@ namespace Fractal {
 	void IntelCodeEmission::emitFunctionDefinition(InstructionPtr instruction) {
 		std::shared_ptr<FunctionDefInstruction> functionDefinition = static_pointer_cast<FunctionDefInstruction>(instruction);
 		
-		writeLine("global _" + functionDefinition->name);
-		label("_" + functionDefinition->name);
+		if (m_platform == Platform::Mac) {
+			writeLine("global _" + functionDefinition->name);
+			label("_" + functionDefinition->name);
+		}
+		else if (m_platform == Platform::Win) {
+			writeLine("global " + functionDefinition->name);
+			label(functionDefinition->name);
+		}
 
 		emitFunctionPrologue(functionDefinition->stackAlloc);
 

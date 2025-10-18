@@ -8,11 +8,16 @@
 #include "CodeGeneration/CodeGenerator.h"
 
 namespace Fractal {
+	enum class Platform {
+		Win,
+		Mac
+	};
+
 	class IntelCodeEmission {
 	public:
 		IntelCodeEmission() = default;
 
-		const std::string& emit(const InstructionList* instructions);
+		const std::string& emit(const InstructionList* instructions, Platform platform);
 		const std::string& output() const;
 	private:
 		// -- FROM INSTRUCTION LIST --
@@ -48,7 +53,7 @@ namespace Fractal {
 		std::string getRegister(OperandPtr operand);
 	private:
 		const InstructionList* m_instructions;
-
+		Platform m_platform;
 		std::string m_output;
 	};
 }

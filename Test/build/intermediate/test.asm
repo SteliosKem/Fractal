@@ -1,6 +1,6 @@
 section .text
-global _main
-_main:
+global main
+main:
     push rbp
     mov rbp, rsp
     sub rsp, 8
@@ -9,7 +9,7 @@ _main:
     setl BYTE [rbp - 8]
     movsx eax, BYTE [rbp - 8]
     mov eax, eax
-    cmp eax, 0
+    cmp eax, 2
     setl BYTE [rbp - 4]
     movsx eax, BYTE [rbp - 4]
     mov eax, eax
