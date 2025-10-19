@@ -26,6 +26,10 @@ namespace Fractal {
 		void generateCompoundStatement(StatementPtr statement, InstructionList* instructions);
 		void generateExpressionStatement(StatementPtr statement, InstructionList* instructions);
 		void generateIfStatement(StatementPtr statement, InstructionList* instructions);
+		void generateLoopStatement(StatementPtr statement, InstructionList* instructions);
+		void generateWhileStatement(StatementPtr statement, InstructionList* instructions);
+		void generateBreakStatement(StatementPtr statement, InstructionList* instructions);
+		void generateContinueStatement(StatementPtr statement, InstructionList* instructions);
 
 		// -- EXPRESSIONS --
 		OperandPtr generateExpression(ExpressionPtr expression, InstructionList* instructions);
@@ -75,6 +79,11 @@ namespace Fractal {
 		uint64_t generateIfIndex();
 		uint64_t generateLoopIndex();
 	private:
+		struct LoopInfo {
+			std::string startLabel;
+			std::string exitLabel;
+		};
+
 		InstructionList m_instructions{};
 		ProgramFile m_program{};
 		int64_t m_currentStackIndex{};
@@ -82,6 +91,7 @@ namespace Fractal {
 		uint64_t m_currentComparisonIndex{};
 		uint64_t m_currentIfIndex{};
 		uint64_t m_currentLoopIndex{};
+		std::vector<LoopInfo> m_loopStack{};
 
 		ErrorHandler* m_errorHandler{ nullptr };
 	};

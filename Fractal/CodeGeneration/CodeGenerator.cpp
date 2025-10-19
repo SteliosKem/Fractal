@@ -75,6 +75,10 @@ namespace Fractal {
 			case NodeType::VariableDefinition: generateVariableDefinition(statement, instructions); return;
 			case NodeType::ExpressionStatement: generateExpressionStatement(statement, instructions); return;
 			case NodeType::IfStatement: generateIfStatement(statement, instructions); return;
+			case NodeType::LoopStatement: generateLoopStatement(statement, instructions); return;
+			case NodeType::WhileStatement: generateWhileStatement(statement, instructions); return;
+			case NodeType::BreakStatement: generateBreakStatement(statement, instructions); return;
+			case NodeType::ContinueStatement: generateContinueStatement(statement, instructions); return;
 			default: return;
 		}
 	}
@@ -119,6 +123,52 @@ namespace Fractal {
 			generateStatement(ifStatement->elseBody, instructions);
 		}
 		instructions->push_back(label(endLabel));
+	}
+
+	void CodeGenerator::generateLoopStatement(StatementPtr statement, InstructionList* instructions) {
+		std::shared_ptr<LoopStatement> loopStatement = static_pointer_cast<LoopStatement>(statement);
+
+		uint64_t index = generateIfIndex();
+		std::string startLabel = ".LS" + std::to_string(index);
+		std::string exitLabel = ".LE" + std::to_string(index);
+
+		m_loopStack.push_back({ startLabel, exitLabel });
+
+		instructions->push_back(label(startLabel));
+		generateStatement(loopStatement->loopBody, instructions);
+		instructions->push_back(jmp(startLabel, ComparisonType::None));
+		instructions->push_back(label(exitLabel));
+
+		m_loopStack.pop_back();
+	}
+
+	void CodeGenerator::generateWhileStatement(StatementPtr statement, InstructionList* instructions) {
+		std::shared_ptr<LoopStatement> loopStatement = static_pointer_cast<LoopStatement>(statement);
+
+		uint64_t index = generateIfIndex();
+		std::string startLabel = ".LS" + std::to_string(index);
+		std::string exitLabel = ".LE" + std::to_string(index);
+
+		m_loopStack.push_back({ startLabel, exitLabel });
+
+		instructions->push_back(label(startLabel));
+		generateStatement(loopStatement->loopBody, instructions);
+		instructions->push_back(jmp(startLabel, ComparisonType::None));
+		instructions->push_back(label(exitLabel));
+
+		m_loopStack.pop_back();
+	}
+
+	void CodeGenerator::generateBreakStatement(StatementPtr statement, InstructionList* instructions) {
+		std::shared_ptr<BreakStatement> breakStatement = static_pointer_cast<BreakStatement>(statement);
+
+		instructions->push_back(jmp(m_loopStack[m_loopStack.size() - 1].exitLabel, ComparisonType::None));
+	}
+
+	void CodeGenerator::generateContinueStatement(StatementPtr statement, InstructionList* instructions) {
+		std::shared_ptr<BreakStatement> breakStatement = static_pointer_cast<BreakStatement>(statement);
+
+		instructions->push_back(jmp(m_loopStack[m_loopStack.size() - 1].startLabel, ComparisonType::None));
 	}
 
 	OperandPtr CodeGenerator::generateExpression(ExpressionPtr expression, InstructionList* instructions) {
@@ -288,11 +338,15 @@ namespace Fractal {
 	}
 
 	uint64_t CodeGenerator::generateComparisonIndex() {
-		return m_currentComparisonIndex++;
+		return ++m_currentComparisonIndex;
 	}
 
 	uint64_t CodeGenerator::generateIfIndex() {
-		return m_currentIfIndex++;
+		return ++m_currentIfIndex;
+	}
+
+	uint64_t CodeGenerator::generateLoopIndex() {
+		return ++m_currentLoopIndex;
 	}
 
 	InstructionPtr CodeGenerator::move(OperandPtr source, OperandPtr destination) {

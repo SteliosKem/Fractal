@@ -5,13 +5,10 @@ Program execution starts from the first statement outside of the definitions hea
 <define>
 
 fn main(): i32 {
-    let a: i32 = 5;
-    if a == 5 => {
-        a = 8;
-        a = 5;
-    }
-    else {
-        a = 1;
+    let a: i32 = 0;
+    loop {
+        a = a + 1;
+        if a == 10 => break;
     }
     return a;
 }
