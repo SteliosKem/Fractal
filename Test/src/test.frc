@@ -6,9 +6,8 @@ Program execution starts from the first statement outside of the definitions hea
 
 fn main(): i32 {
     let a: i32 = 0;
-    loop {
-        a = a + 1;
-        if a == 10 => break;
+    while a < 5 => {
+        a = a + 2;
     }
     return a;
 }

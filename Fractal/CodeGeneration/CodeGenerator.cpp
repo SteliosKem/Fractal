@@ -143,7 +143,7 @@ namespace Fractal {
 	}
 
 	void CodeGenerator::generateWhileStatement(StatementPtr statement, InstructionList* instructions) {
-		std::shared_ptr<LoopStatement> loopStatement = static_pointer_cast<LoopStatement>(statement);
+		std::shared_ptr<WhileStatement> whileStatement = static_pointer_cast<WhileStatement>(statement);
 
 		uint64_t index = generateIfIndex();
 		std::string startLabel = ".LS" + std::to_string(index);
@@ -152,7 +152,10 @@ namespace Fractal {
 		m_loopStack.push_back({ startLabel, exitLabel });
 
 		instructions->push_back(label(startLabel));
-		generateStatement(loopStatement->loopBody, instructions);
+		OperandPtr temp = generateExpression(whileStatement->condition, instructions);
+		instructions->push_back(cmp(temp, std::make_shared<IntegerConstant>(0)));
+		instructions->push_back(jmp(exitLabel, ComparisonType::Equal));
+		generateStatement(whileStatement->loopBody, instructions);
 		instructions->push_back(jmp(startLabel, ComparisonType::None));
 		instructions->push_back(label(exitLabel));
 
