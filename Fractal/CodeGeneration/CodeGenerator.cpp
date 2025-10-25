@@ -485,6 +485,7 @@ namespace Fractal {
 			case InstructionType::Multiply: validateMul(instructions, i); break;
 			case InstructionType::Divide: validateDiv(instructions, i); break;
 			case InstructionType::Compare: validateCmp(instructions, i); break;
+			case InstructionType::Push: validatePush(instructions, i); break;
 			}
 		}
 	}
@@ -562,6 +563,16 @@ namespace Fractal {
 			OperandPtr oldLeft = cmpInstruction->left;
 			cmpInstruction->left = scratchReg;
 			instructions->emplace(instructions->begin() + i, move(oldLeft, scratchReg));
+		}
+	}
+
+	void CodeGenerator::validatePush(InstructionList* instructions, size_t i) {
+		std::shared_ptr<PushInstruction> pushInstruction = static_pointer_cast<PushInstruction>((*instructions)[i]);
+		if (pushInstruction->src->getType() != OperandType::IntegerConstant
+			&& pushInstruction->src->getSize() != Size::QWord) {
+			OperandPtr scratchReg = reg(Register::AX, Size::QWord);
+			instructions->emplace(instructions->begin() + i, move(pushInstruction->src, scratchReg));
+			pushInstruction->src = scratchReg;
 		}
 	}
 }

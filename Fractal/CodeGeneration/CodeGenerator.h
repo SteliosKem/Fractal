@@ -78,6 +78,7 @@ namespace Fractal {
 		void validateMul(InstructionList* instructions, size_t i);
 		void validateDiv(InstructionList* instructions, size_t i);
 		void validateCmp(InstructionList* instructions, size_t i);
+		void validatePush(InstructionList* instructions, size_t i);
 
 		void validateMoveOperands(InstructionList* instructions, size_t i, OperandPtr source, OperandPtr* destination);
 		void validateBinOperands(InstructionList* instructions, size_t i, OperandPtr source, OperandPtr* other);
