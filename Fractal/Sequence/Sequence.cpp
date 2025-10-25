@@ -109,7 +109,7 @@ sampleFunction();)";
         std::cout << '\n';
 
         if(platform == Platform::Win) {
-            std::cout << emitter.emit(&codeGenerator.instructions(), Platform::Win);
+            std::cout << emitter.emit(&codeGenerator.instructions(), codeGenerator.externals(), Platform::Win);
 
             std::filesystem::path intermediate = projectDir / project.outPath / "intermediate";
             if(!std::filesystem::exists(intermediate))
@@ -122,7 +122,7 @@ sampleFunction();)";
             system(("gcc " + path + ".o -o " + path + ".exe").c_str());
         }
         else if (platform == Platform::Mac) {
-            std::cout << emitter.emit(&codeGenerator.instructions(), Platform::Mac);
+            std::cout << emitter.emit(&codeGenerator.instructions(), codeGenerator.externals(), Platform::Mac);
 
             std::filesystem::path intermediate = projectDir / project.outPath / "intermediate";
             if (!std::filesystem::exists(intermediate))

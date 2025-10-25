@@ -379,6 +379,8 @@ namespace Fractal {
 	DefinitionPtr Parser::parseDefinition() {
 		switch (currentToken().type)
 		{
+		case AT:
+			return parseDecoratedDefinition();
 		case FUNCTION:
 			return definitionFunction();
 		case LET:
@@ -389,6 +391,19 @@ namespace Fractal {
 		default:
 			return nullptr;
 		}
+	}
+
+	DefinitionPtr Parser::parseDecoratedDefinition() {
+		advance();
+		Decorator decorator = Decorator::None;
+		if (currentToken().value == "internal") decorator = Decorator::Internal;
+		else if (currentToken().value == "external") decorator = Decorator::External;
+		else {
+			m_errorHandler->reportError({ "Unknown decorator", currentToken().position });
+			return nullptr;
+		}
+		advance();
+		return std::make_shared<DecoratedDefinition>(decorator, parseDefinition());
 	}
 
 	DefinitionPtr Parser::definitionFunction() {

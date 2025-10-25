@@ -43,6 +43,7 @@ namespace Fractal {
 			COMMA,
 			SEMICOLON,
 			COLON,
+			AT,
 
 			// Assignment
 			EQUAL,

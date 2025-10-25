@@ -5,9 +5,16 @@
 #include "IntelCodeEmission.h"
 
 namespace Fractal {
-	const std::string& IntelCodeEmission::emit(const InstructionList* instructions, Platform platform) {
+	const std::string& IntelCodeEmission::emit(const InstructionList* instructions, const std::vector<std::string>* externals, Platform platform) {
 		m_platform = platform;
 		m_instructions = instructions;
+		m_externals = externals;
+
+		std::string writeExt = "extern ";
+		for (auto& str : *externals)
+			writeExt += str + ", ";
+
+		writeLine(writeExt);
 
 		writeLine("section .text");
 

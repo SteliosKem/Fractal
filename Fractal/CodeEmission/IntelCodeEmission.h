@@ -13,7 +13,7 @@ namespace Fractal {
 	public:
 		IntelCodeEmission() = default;
 
-		const std::string& emit(const InstructionList* instructions, Platform platform);
+		const std::string& emit(const InstructionList* instructions, const std::vector<std::string>* externals, Platform platform);
 		const std::string& output() const;
 	private:
 		// -- FROM INSTRUCTION LIST --
@@ -54,6 +54,7 @@ namespace Fractal {
 	private:
 		const InstructionList* m_instructions;
 		Platform m_platform;
+		const std::vector<std::string>* m_externals;
 		std::string m_output;
 	};
 }

@@ -4,13 +4,15 @@ Program execution starts from the first statement outside of the definitions hea
 
 <define>
 
-fn fib(a: i32, b: i32, c: i32, d: i32, e: i32, f: i32): i32 {
-    return a + b + c + d + e + f;
-}
+@external
+fn putchar(a: i32): i32;
 
 fn main(): i32 {
-    let a: i32 = 5;
-    return fib(a, a, a, a, a, a + 2);
+    let i: i32 = 0;
+    while i < 26 => {
+        putchar(65 + i);
+        i = i + 1;
+    }
 }
 
 <!define>

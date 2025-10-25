@@ -160,6 +160,7 @@ namespace Fractal {
 			SINGLE_CHARACTER('&', AMPERSAND);
 			SINGLE_CHARACTER('~', TILDE);
 			SINGLE_CHARACTER('%', PERCENT);
+			SINGLE_CHARACTER('@', AT);
 			SINGLE_CHARACTER(':', COLON);
 			// Check for double character tokens
 			DOUBLE_OR_SINGLE('+', PLUS, '=', "+=", PLUS_EQUAL);

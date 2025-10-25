@@ -19,11 +19,13 @@ namespace Fractal {
 
 		const InstructionList& generate(const ProgramFile& program, Platform platform);
 		const InstructionList& instructions() const { return m_instructions; }
+		const std::vector<std::string>* externals() const { return &m_externals; }
 	private:
 		// -- DEFINITIONS --
 		void generateDefinition(DefinitionPtr definition, InstructionList* instructions);
 		void generateFunctionDefinition(DefinitionPtr definition, InstructionList* instructions);
 		void generateVariableDefinition(StatementPtr definition, InstructionList* instructions);
+		void generateDecoratedDefinition(DefinitionPtr definition, InstructionList* instructions);
 
 		// -- STATEMENTS --
 		void generateStatement(StatementPtr statement, InstructionList* instructions);
@@ -102,6 +104,7 @@ namespace Fractal {
 		uint64_t m_currentLoopIndex{};
 		std::vector<LoopInfo> m_loopStack{};
 		Platform m_platform{};
+		std::vector<std::string> m_externals{};
 
 		ErrorHandler* m_errorHandler{ nullptr };
 	};

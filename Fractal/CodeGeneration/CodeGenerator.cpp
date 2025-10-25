@@ -38,7 +38,16 @@ namespace Fractal {
 	void CodeGenerator::generateDefinition(DefinitionPtr definition, InstructionList* instructions) {
 		switch (definition->getType()) {
 			case NodeType::FunctionDefinition: generateFunctionDefinition(definition, instructions);
+			case NodeType::DecoratedDefinition: generateDecoratedDefinition(definition, instructions);
 			default: return;
+		}
+	}
+
+	void CodeGenerator::generateDecoratedDefinition(DefinitionPtr definition, InstructionList* instructions) {
+		std::shared_ptr<DecoratedDefinition> dec = static_pointer_cast<DecoratedDefinition>(definition);
+		if (dec->decorator == Decorator::External) {
+			m_externals.push_back(dec->definition->getName());
+			return;
 		}
 	}
 

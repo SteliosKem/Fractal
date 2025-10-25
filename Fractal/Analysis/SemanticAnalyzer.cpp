@@ -54,9 +54,17 @@ namespace Fractal {
 			case NodeType::FunctionDefinition: return analyzeDefinitionFunction(definition, toSave);
 			case NodeType::VariableDefinition: return analyzeDefinitionVariable(definition, toSave);
 			case NodeType::ClassDefinition: return analyzeDefinitionClass(definition, toSave);
+			case NodeType::DecoratedDefinition: return analyzeDecoratedDefinition(definition, toSave);
 			default:
 				return false;
 		}
+	}
+
+	bool SemanticAnalyzer::analyzeDecoratedDefinition(DefinitionPtr definition, bool toSave) {
+		std::shared_ptr<DecoratedDefinition> decorated = static_pointer_cast<DecoratedDefinition>(definition);
+		if(decorated->decorator == Decorator::External)
+			return analyzeDefinition(decorated->definition);
+		return true;
 	}
 
 	void SemanticAnalyzer::pushScope() {
@@ -90,6 +98,11 @@ namespace Fractal {
 
 		m_currentFunction = std::make_shared<FunctionType>(functionDefinition->returnType, parameterTypes);
 		m_globalTable[functionDefinition->nameToken.value] = SymbolEntry{ functionDefinition->nameToken.value, m_currentFunction };
+
+		if (toSave) {
+			popScope();
+			return true;
+		}
 		
 		if (!analyzeStatement(functionDefinition->functionBody)) return false;
 

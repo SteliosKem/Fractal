@@ -41,6 +41,7 @@ namespace Fractal {
 		bool analyzeParameters(const ParameterList& paramList);
 		bool analyzeDefinitionVariable(DefinitionPtr definition, bool toSave = false);
 		bool analyzeDefinitionClass(DefinitionPtr definition, bool toSave = false);
+		bool analyzeDecoratedDefinition(DefinitionPtr definition, bool toSave = false);
 
 		// -- STATEMENTS --
 		bool analyzeStatement(StatementPtr statement);

@@ -36,7 +36,14 @@ namespace Fractal {
 		Definition,
 		FunctionDefinition,
 		VariableDefinition,
-		ClassDefinition
+		ClassDefinition,
+		DecoratedDefinition,
+	};
+
+	enum class Decorator {
+		None,
+		External,
+		Internal,
 	};
 
 #define _TYPE(x) virtual NodeType getType() const { return x; }
@@ -63,6 +70,7 @@ namespace Fractal {
 	public:
 		virtual ~Definition() = default;
 		virtual void print(uint8_t indent = 0) const override {}
+		virtual std::string getName() const { return ""; };
 		TYPE(NodeType::Definition)
 	};
 
@@ -429,6 +437,7 @@ namespace Fractal {
 			functionBody->print();
 			std::cout << "!=> \n";
 		}
+		std::string getName() const override { return nameToken.value; }
 		TYPE(NodeType::FunctionDefinition)
 	public:
 		Token nameToken;
@@ -446,6 +455,7 @@ namespace Fractal {
 			if (initializer) initializer->print();
 			std::cout << '\n';
 		}
+		std::string getName() const override { return nameToken.value; }
 		TYPE(NodeType::VariableDefinition)
 	public:
 		Token nameToken;
@@ -478,6 +488,20 @@ namespace Fractal {
 	public:
 		std::string className;
 		MemberList definitions;
+	};
+
+	class DecoratedDefinition : public Definition {
+	public:
+		DecoratedDefinition(Decorator decorator, DefinitionPtr definition) : decorator{ decorator }, definition{ definition } {}
+		void print(uint8_t indent = 0) const override {
+			std::cout << "Decorated ";
+			definition->print();
+		}
+		std::string getName() const override { return definition->getName(); }
+		TYPE(NodeType::DecoratedDefinition)
+	public:
+		Decorator decorator;
+		DefinitionPtr definition;
 	};
 
 	struct ProgramFile {

@@ -72,6 +72,7 @@ namespace Fractal {
 
 		void handleDefinitions();
 		DefinitionPtr parseDefinition();
+		DefinitionPtr parseDecoratedDefinition();
 		DefinitionPtr definitionFunction();
 		DefinitionPtr definitionVariable(bool isGlobal = true);
 		DefinitionPtr definitionClass();
