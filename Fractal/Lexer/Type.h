@@ -87,7 +87,7 @@ namespace Fractal {
 			std::string toReturn = "func<" + returnType->typeName() + "(";
 			for (auto type : parameterTypes)
 				toReturn += type->typeName() + ", ";
-			toReturn += ")";
+			toReturn += ")>";
 			return toReturn;
 		}
 	public:

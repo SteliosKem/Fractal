@@ -90,7 +90,7 @@ namespace Fractal {
 
 		m_currentFunction = std::make_shared<FunctionType>(functionDefinition->returnType, parameterTypes);
 		m_globalTable[functionDefinition->nameToken.value] = SymbolEntry{ functionDefinition->nameToken.value, m_currentFunction };
-
+		
 		if (!analyzeStatement(functionDefinition->functionBody)) return false;
 
 		m_currentFunction = nullptr;
@@ -109,7 +109,9 @@ namespace Fractal {
 				return false;
 			}
 			paramListCheck.push_back(parameter->nameToken.value);
-			topScope()[parameter->nameToken.value] = {createUnique(parameter->nameToken.value), parameter->type};
+			std::string newName = createUnique(parameter->nameToken.value);
+			topScope()[parameter->nameToken.value] = { newName, parameter->type };
+			parameter->nameToken.value = newName;
 		}
 		return true;
 	}
@@ -222,7 +224,7 @@ namespace Fractal {
 		if (!analyzeExpression(ifStatement->condition)) return false;
 		if (!analyzeStatement(ifStatement->ifBody)) return false;
 		if (ifStatement->elseBody)
-			if (!analyzeStatement(ifStatement->ifBody))
+			if (!analyzeStatement(ifStatement->elseBody))
 				return false;
 
 		return true;
@@ -363,10 +365,11 @@ namespace Fractal {
 
 		int32_t index = findNameLocal(identifier->idToken);
 		if (index > -1) {
-			identifier->idToken.value = m_localStack[index][identifier->idToken.value].name;
 			identifier->expressionType = m_localStack[index][identifier->idToken.value].type;
+			identifier->idToken.value = m_localStack[index][identifier->idToken.value].name;
 			return true;
 		}
+
 		if (!findNameGlobal(identifier->idToken)) {
 			m_errorHandler->reportError({ "Undefined name '" + identifier->idToken.value + "'", identifier->idToken.position});
 			return false;

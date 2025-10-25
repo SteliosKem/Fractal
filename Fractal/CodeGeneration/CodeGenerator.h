@@ -8,11 +8,16 @@
 #include "Parser/Nodes.h"
 
 namespace Fractal {
+	enum class Platform {
+		Win,
+		Mac
+	};
+
 	class CodeGenerator {
 	public:
 		CodeGenerator(ErrorHandler* errorHandler) : m_errorHandler{ errorHandler } {}
 
-		const InstructionList& generate(const ProgramFile& program);
+		const InstructionList& generate(const ProgramFile& program, Platform platform);
 		const InstructionList& instructions() const { return m_instructions; }
 	private:
 		// -- DEFINITIONS --
@@ -41,6 +46,7 @@ namespace Fractal {
 		OperandPtr generateLogical(std::shared_ptr<BinaryOperation> expression, InstructionList* instructions);
 		OperandPtr generateAssignment(ExpressionPtr expression, InstructionList* instructions);
 		OperandPtr getIdentifier(ExpressionPtr expression);
+		OperandPtr generateCall(ExpressionPtr expression, InstructionList* instructions);
 		OperandPtr idiv(std::shared_ptr<BinaryOperation> division, InstructionList* instructions);
 
 		// -- INSTRUCTIONS --
@@ -53,6 +59,8 @@ namespace Fractal {
 		InstructionPtr cmp(OperandPtr left, OperandPtr right);
 		InstructionPtr set(OperandPtr operand, ComparisonType type);
 		InstructionPtr jmp(const std::string& label, ComparisonType type);
+		InstructionPtr call(const std::string& func);
+		InstructionPtr push(OperandPtr src);
 		OperandPtr reg(Register register_, Size size = Size::DWord);
 		OperandPtr intConst(int64_t integer);
 		InstructionPtr label(const std::string& name);
@@ -92,6 +100,7 @@ namespace Fractal {
 		uint64_t m_currentIfIndex{};
 		uint64_t m_currentLoopIndex{};
 		std::vector<LoopInfo> m_loopStack{};
+		Platform m_platform{};
 
 		ErrorHandler* m_errorHandler{ nullptr };
 	};

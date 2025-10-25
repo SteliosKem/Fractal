@@ -4,12 +4,14 @@ Program execution starts from the first statement outside of the definitions hea
 
 <define>
 
+fn fib(a: i32): i32 {
+    if a > 0 =>
+        return fib(a - 1) + fib(a - 2);
+    else return 1;
+}
+
 fn main(): i32 {
-    let a: i32 = 0;
-    while a < 5 => {
-        a = a + 2;
-    }
-    return a;
+    return fib(5);
 }
 
 <!define>

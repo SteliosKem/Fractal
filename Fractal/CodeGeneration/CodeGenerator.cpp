@@ -5,9 +5,23 @@
 #include "CodeGenerator.h"
 
 namespace Fractal {
-	const InstructionList& CodeGenerator::generate(const ProgramFile& program) {
+	Size getTypeSize(TypePtr type) {
+		switch (type->typeInfo()) {
+			case TypeInfo::Fundamental: {
+				std::shared_ptr<FundamentalType> fundamentalType = static_pointer_cast<FundamentalType>(type);
+				switch (fundamentalType->type) {
+				case BasicType::I32: return Size::DWord;
+				case BasicType::I64: return Size::QWord;
+				}
+			}
+		}
+	}
+
+	const InstructionList& CodeGenerator::generate(const ProgramFile& program, Platform platform) {
 		m_program = program;
 		m_instructions = {};
+		m_platform = platform;
+
 		for (auto definition : program.definitions)
 			generateDefinition(definition, &m_instructions);
 
@@ -34,25 +48,34 @@ namespace Fractal {
 		std::shared_ptr<FunctionDefInstruction> mainFunc = std::make_shared<FunctionDefInstruction>("main", InstructionList{});
 
 		mainFunc->name = func->nameToken.value;
+
+		std::vector<Register> argumentRegisters = (m_platform == Platform::Win)
+			? std::vector<Register>{ Register::CX, Register::DX, Register::R8, Register::R9 }
+		: std::vector<Register>{ Register::DI, Register::SI, Register::DX, Register::CX, Register::R8, Register::R9 };
+
+		bool addToStack = false;
+		size_t m = (func->parameterList.size() > argumentRegisters.size() ? addToStack = true, argumentRegisters.size() : func->parameterList.size());
+		for (size_t i = 0; i < m; i++) {
+			Size paramSize = getTypeSize(func->parameterList[i]->type);
+			OperandPtr stackParam = std::make_shared<TempOperand>(allocateStack(paramSize), paramSize);
+			mainFunc->instructions.push_back(move(reg(argumentRegisters[i], paramSize), stackParam));
+			m_localVarMap[func->parameterList[i]->nameToken.value] = stackParam;
+		}
+
+		uint32_t stackArgs = 0;
+
+		if (addToStack) {
+			for (size_t i = func->parameterList.size() - 1; i >= argumentRegisters.size(); i--)
+				m_localVarMap[func->parameterList[i]->nameToken.value] = std::make_shared<TempOperand>(-(i - argumentRegisters.size() + 2) * 8, getTypeSize(func->parameterList[i]->type));
+		}
+
 		generateStatement(func->functionBody, &mainFunc->instructions);
 
 		instructions->push_back(mainFunc);
 		mainFunc->stackAlloc = m_currentStackIndex;
 
-		mainFunc->instructions.push_back(move(std::make_shared<IntegerConstant>(0), reg(Register::AX, Size::DWord)));
+		mainFunc->instructions.push_back(move(intConst(0), reg(Register::AX, Size::DWord)));
 		mainFunc->instructions.push_back(std::make_shared<ReturnInstruction>());
-	}
-
-	Size getTypeSize(TypePtr type) {
-		switch (type->typeInfo()) {
-			case TypeInfo::Fundamental: {
-				std::shared_ptr<FundamentalType> fundamentalType = static_pointer_cast<FundamentalType>(type);
-				switch (fundamentalType->type) {
-				case BasicType::I32: return Size::DWord;
-				case BasicType::I64: return Size::QWord;
-				}
-			}
-		}
 	}
 
 	void CodeGenerator::generateVariableDefinition(StatementPtr definition, InstructionList* instructions) {
@@ -113,7 +136,7 @@ namespace Fractal {
 		if (!ifStatement->elseBody) falseLabel = endLabel;
 
 		OperandPtr temp = generateExpression(ifStatement->condition, instructions);
-		instructions->push_back(cmp(temp, std::make_shared<IntegerConstant>(0)));
+		instructions->push_back(cmp(temp, intConst(0)));
 		instructions->push_back(jmp(falseLabel, ComparisonType::Equal));
 		generateStatement(ifStatement->ifBody, instructions);
 
@@ -153,7 +176,7 @@ namespace Fractal {
 
 		instructions->push_back(label(startLabel));
 		OperandPtr temp = generateExpression(whileStatement->condition, instructions);
-		instructions->push_back(cmp(temp, std::make_shared<IntegerConstant>(0)));
+		instructions->push_back(cmp(temp, intConst(0)));
 		instructions->push_back(jmp(exitLabel, ComparisonType::Equal));
 		generateStatement(whileStatement->loopBody, instructions);
 		instructions->push_back(jmp(startLabel, ComparisonType::None));
@@ -181,6 +204,7 @@ namespace Fractal {
 			case NodeType::BinaryOperation: return generateBinaryOperation(expression, instructions);
 			case NodeType::Assignment: return generateAssignment(expression, instructions);
 			case NodeType::Identifier: return getIdentifier(expression);
+			case NodeType::Call: return generateCall(expression, instructions);
 			default: return nullptr;
 		}
 	}
@@ -295,35 +319,35 @@ namespace Fractal {
 
 		if (expression->operatorToken.type == AND) {
 			OperandPtr a = generateExpression(expression->left, instructions);
-			instructions->push_back(cmp(a, std::make_shared<IntegerConstant>(0)));
+			instructions->push_back(cmp(a, intConst(0)));
 			instructions->push_back(jmp(falseLabel, ComparisonType::Equal));
 			OperandPtr b = generateExpression(expression->right, instructions);
-			instructions->push_back(cmp(b, std::make_shared<IntegerConstant>(0)));
+			instructions->push_back(cmp(b, intConst(0)));
 			instructions->push_back(jmp(falseLabel, ComparisonType::Equal));
 
 			// Only happens if true
-			instructions->push_back(move(std::make_shared<IntegerConstant>(1), destination));
+			instructions->push_back(move(intConst(1), destination));
 			instructions->push_back(jmp(endLabel, ComparisonType::None));
 
 			// False label
 			instructions->push_back(label(falseLabel));
-			instructions->push_back(move(std::make_shared<IntegerConstant>(0), destination));
+			instructions->push_back(move(intConst(0), destination));
 		}
 		else {
 			OperandPtr a = generateExpression(expression->left, instructions);
-			instructions->push_back(cmp(a, std::make_shared<IntegerConstant>(1)));
+			instructions->push_back(cmp(a, intConst(1)));
 			instructions->push_back(jmp(trueLabel, ComparisonType::Equal));
 			OperandPtr b = generateExpression(expression->right, instructions);
-			instructions->push_back(cmp(b, std::make_shared<IntegerConstant>(1)));
+			instructions->push_back(cmp(b, intConst(1)));
 			instructions->push_back(jmp(trueLabel, ComparisonType::Equal));
 
 			// Only happens if false
-			instructions->push_back(move(std::make_shared<IntegerConstant>(0), destination));
+			instructions->push_back(move(intConst(0), destination));
 			instructions->push_back(jmp(endLabel, ComparisonType::None));
 
 			// True label
 			instructions->push_back(label(trueLabel));
-			instructions->push_back(move(std::make_shared<IntegerConstant>(1), destination));
+			instructions->push_back(move(intConst(1), destination));
 		}
 
 		// End
@@ -338,6 +362,35 @@ namespace Fractal {
 		OperandPtr var = generateExpression(assignment->left, instructions);
 		instructions->push_back(move(temp, var));
 		return var;
+	}
+
+	OperandPtr CodeGenerator::generateCall(ExpressionPtr expression, InstructionList* instructions) {
+		std::shared_ptr<Call> callExpr = static_pointer_cast<Call>(expression);
+		int stackPadding = (m_platform == Platform::Win ? 32 : 0);
+		if (callExpr->argumentList.size() % 2 == 0) stackPadding += 8;
+
+		std::vector<Register> argumentRegisters = (m_platform == Platform::Win) 
+			? std::vector<Register>{ Register::CX, Register::DX, Register::R8, Register::R9 }
+			: std::vector<Register>{ Register::DI, Register::SI, Register::DX, Register::CX, Register::R8, Register::R9 };
+
+		instructions->push_back(sub(reg(Register::SP, Size::QWord), intConst(stackPadding)));
+		bool addToStack = false;
+		size_t m = (callExpr->argumentList.size() > argumentRegisters.size() ? addToStack = true, argumentRegisters.size() : callExpr->argumentList.size());
+		for (size_t i = 0; i < m; i++)
+			instructions->push_back(move(generateExpression(callExpr->argumentList[i]->expression, instructions), reg(argumentRegisters[i], Size::DWord)));
+
+		uint32_t stackArgs = 0;
+
+		if (addToStack) {
+			for (size_t i = callExpr->argumentList.size() - 1; i >= argumentRegisters.size(); i--) {
+				instructions->push_back(push(generateExpression(callExpr->argumentList[i]->expression, instructions)));
+				stackArgs++;
+			}
+		}
+		instructions->push_back(call(callExpr->funcToken.value));
+		instructions->push_back(add(reg(Register::SP, Size::QWord), intConst(8 * stackArgs + stackPadding)));
+		
+		return reg(Register::AX, Size::DWord);
 	}
 
 	uint64_t CodeGenerator::generateComparisonIndex() {
@@ -401,6 +454,14 @@ namespace Fractal {
 
 	InstructionPtr CodeGenerator::jmp(const std::string& label, ComparisonType type) {
 		return std::make_shared<JumpInstruction>(label, type);
+	}
+
+	InstructionPtr CodeGenerator::call(const std::string& func) {
+		return std::make_shared<CallInstruction>(func);
+	}
+
+	InstructionPtr CodeGenerator::push(OperandPtr src) {
+		return std::make_shared<PushInstruction>(src);
 	}
 
 	OperandPtr CodeGenerator::intConst(int64_t integer) {

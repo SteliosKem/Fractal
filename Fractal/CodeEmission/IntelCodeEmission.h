@@ -8,10 +8,6 @@
 #include "CodeGeneration/CodeGenerator.h"
 
 namespace Fractal {
-	enum class Platform {
-		Win,
-		Mac
-	};
 
 	class IntelCodeEmission {
 	public:
@@ -37,6 +33,8 @@ namespace Fractal {
 		void emitIdiv(InstructionPtr instruction);
 		void emitJmp(InstructionPtr instruction);
 		void emitLabel(InstructionPtr instruction);
+		void emitCall(InstructionPtr instruction);
+		void emitPush(InstructionPtr instruction);
 		void emitReturn();
 
 		std::string getOperandStr(OperandPtr operand);

@@ -45,7 +45,9 @@ namespace Fractal {
 		case InstructionType::Set: emitSet(instruction); return;
 		case InstructionType::Jump: emitJmp(instruction); return;
 		case InstructionType::Label: emitLabel(instruction); return;
+		case InstructionType::Call: emitCall(instruction); return;
 		case InstructionType::Return: emitFunctionEpilogue(); emitReturn(); return;
+		case InstructionType::Push: emitPush(instruction); return;
 		default: return;
 		}
 	}
@@ -150,20 +152,53 @@ namespace Fractal {
 		writeLine(label->name + ":");
 	}
 
+	void IntelCodeEmission::emitCall(InstructionPtr instruction) {
+		std::shared_ptr<CallInstruction> call = static_pointer_cast<CallInstruction>(instruction);
+
+		writeILine("call " + call->func);
+	}
+
+	void IntelCodeEmission::emitPush(InstructionPtr instruction) {
+		std::shared_ptr<PushInstruction> push = static_pointer_cast<PushInstruction>(instruction);
+
+		writeILine("push " + getOperandStr(push->src));
+	}
+
 	void IntelCodeEmission::emitReturn() {
 		writeILine("ret");
 	}
 
 	std::string IntelCodeEmission::getRegister(OperandPtr operand) {
 		std::shared_ptr<RegisterOperand> reg = static_pointer_cast<RegisterOperand>(operand);
-		switch (reg->reg) {
-		case Register::AX: return "eax";
-		case Register::BX: return "ebx";
-		case Register::DX: return "edx";
-		case Register::R10: return "r10d";
-		case Register::R11: return "r11d";
-		default: return "";
+		std::string toRet = "";
+		if ((uint8_t)reg->reg < 8) {
+			switch (reg->size) {
+			case Size::QWord: toRet = "r"; break;
+			case Size::DWord: toRet = "e"; break;
+			}
 		}
+		switch (reg->reg) {
+			case Register::AX: toRet += "ax"; break;
+			case Register::BX: toRet += "bx"; break;
+			case Register::CX: toRet += "cx"; break;
+			case Register::DX: toRet += "dx"; break;
+			case Register::DI: toRet += "di"; break;
+			case Register::SI: toRet += "si"; break;
+			case Register::BP: toRet += "bp"; break;
+			case Register::SP: toRet += "sp"; break;
+			case Register::R8: toRet += "r8"; break;
+			case Register::R9: toRet += "r9"; break;
+			case Register::R10: toRet += "r10"; break;
+			case Register::R11: toRet += "r11"; break;
+			default: return "";
+		}
+		if ((uint8_t)reg->reg >= 8) {
+			switch (reg->size) {
+			case Size::QWord: break;
+			case Size::DWord: toRet += "d"; break;
+			}
+		}
+		return toRet;
 	}
 
 	std::string IntelCodeEmission::getOperandStr(OperandPtr operand) {
@@ -188,7 +223,8 @@ namespace Fractal {
 
 	std::string IntelCodeEmission::getTemp(OperandPtr operand) {
 		std::shared_ptr<TempOperand> temp = static_pointer_cast<TempOperand>(operand);
-		return getSizeMemory(temp->size) + " [rbp - " + std::to_string(temp->stackOffest) + "]";
+		std::string sign = temp->stackOffest < 0 ? "+" : "-";
+		return getSizeMemory(temp->size) + " [rbp " + sign + " " + std::to_string(abs(temp->stackOffest)) + "]";
 	}
 
 	std::string IntelCodeEmission::getComparisonType(ComparisonType type) {

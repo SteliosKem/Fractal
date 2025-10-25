@@ -61,6 +61,14 @@ sampleFunction();)";
         json doc{json::parse(readFile(projectDir / "build_config.json"))};
         doc.get_to(project);
 
+        Platform platform;
+        if (project.architecture == "x86_64-intel-win") platform = Platform::Win;
+        else if (project.architecture == "x86_64-intel-mac") platform = Platform::Mac;
+        else {
+            std::cout << "Invalid architecture specified in build config. Aborting.";
+            return false;
+        }
+
         std::filesystem::path srcPath = projectDir / project.srcPath;
 
         Fractal::ErrorHandler errorHandler;
@@ -93,14 +101,14 @@ sampleFunction();)";
         }
         errorHandler.outputWarnings();
 
-        std::cout << '\n';
+        std::cout << "Analysis Completed" << '\n';
 
-        for (auto instruction : codeGenerator.generate(parser.program()))
+        for (auto instruction : codeGenerator.generate(parser.program(), platform))
             instruction->print();
 
         std::cout << '\n';
 
-        if(project.architecture == "x86_64-intel-win") {
+        if(platform == Platform::Win) {
             std::cout << emitter.emit(&codeGenerator.instructions(), Platform::Win);
 
             std::filesystem::path intermediate = projectDir / project.outPath / "intermediate";
@@ -113,7 +121,7 @@ sampleFunction();)";
             system(("nasm -f elf64 " + path + ".asm -o " + path + ".o").c_str());
             system(("gcc " + path + ".o -o " + path + ".exe").c_str());
         }
-        else if (project.architecture == "x86_64-intel-mac") {
+        else if (platform == Platform::Mac) {
             std::cout << emitter.emit(&codeGenerator.instructions(), Platform::Mac);
 
             std::filesystem::path intermediate = projectDir / project.outPath / "intermediate";
@@ -126,10 +134,7 @@ sampleFunction();)";
             system(("nasm -f macho64 " + path + ".asm -o " + path + ".o").c_str());
             system(("arch -x86_64 gcc " + path + ".o -o " + path).c_str());
         }
-        else {
-            std::cout << "Invalid architecture specified in build config. Aborting.";
-            return false;
-        }
+        
 
         return true;
     }

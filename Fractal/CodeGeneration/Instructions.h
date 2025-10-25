@@ -26,7 +26,10 @@ namespace Fractal {
 		Compare,
 		Set,
 		Jump,
-		Label
+		Label,
+		Call,
+		Push,
+		Pop
 	};
 
 	enum class OperandType {
@@ -36,13 +39,19 @@ namespace Fractal {
 		Temp
 	};
 
-	enum class Register {
-		AX,
-		BX,
-		DX,
-		R10,
-		R11,
-		R9
+	enum class Register : uint8_t {
+		AX = 0,
+		BX = 1,
+		CX = 2,
+		DX = 3,
+		DI = 4,
+		SI = 5,
+		BP = 6,
+		SP = 7,
+		R8 = 8,
+		R9 = 9,
+		R10 = 10,
+		R11 = 11,
 	};
 
 	enum class Size : uint8_t {
@@ -282,6 +291,29 @@ namespace Fractal {
 	public:
 		std::string label;
 		ComparisonType type;
+	};
+
+	class CallInstruction : public Instruction {
+	public:
+		CallInstruction(const std::string& func) : func{ func } {}
+		INSTR_TYPE(Call)
+			virtual void print() const override {
+			std::cout << "call " << func;
+		}
+	public:
+		std::string func;
+	};
+
+	class PushInstruction : public Instruction {
+	public:
+		PushInstruction(OperandPtr src) : src{ src } {}
+		INSTR_TYPE(Push)
+			virtual void print() const override {
+			std::cout << "push ";
+			src->print();
+		}
+	public:
+		OperandPtr src;
 	};
 
 	class ReturnInstruction : public Instruction {
