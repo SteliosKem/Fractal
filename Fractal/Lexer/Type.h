@@ -143,4 +143,19 @@ namespace Fractal {
 		}
 		return true;
 	}
+
+	inline Size isNumType(TypePtr type) {
+		if(type->typeInfo() != TypeInfo::Fundamental) return Size::None;
+		std::shared_ptr<FundamentalType> funType = static_pointer_cast<FundamentalType>(type);
+		switch (funType->type)
+		{
+		case BasicType::I32:
+			return Size::DWord;
+		case BasicType::I64:
+			return Size::QWord;
+		default:
+			return Size::None;
+			break;
+		}
+	}
 }

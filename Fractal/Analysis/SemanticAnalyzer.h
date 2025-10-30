@@ -34,6 +34,11 @@ namespace Fractal {
 		SymbolTable& topScope();
 		std::string createUnique(const std::string& name);
 
+		// Return false if type cannot be converted
+		bool handleTypeConversion(ExpressionPtr* a, ExpressionPtr* b);
+		static bool tryCast(ExpressionPtr* original, TypePtr target);
+		static void cast(ExpressionPtr* original, TypePtr target);
+
 		// -- DEFINITIONS --
 		
 		bool analyzeDefinition(DefinitionPtr definition, bool toSave = false);

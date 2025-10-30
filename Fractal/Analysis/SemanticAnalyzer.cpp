@@ -156,7 +156,7 @@ namespace Fractal {
 				&& static_pointer_cast<FundamentalType>(variableDefinition->variableType)->type == BasicType::None)
 				variableDefinition->variableType = variableDefinition->initializer->expressionType;
 			else {
-				if (!sameType(variableDefinition->initializer->expressionType, variableDefinition->variableType)) {
+				if (!tryCast(&variableDefinition->initializer, variableDefinition->variableType)) {
 					m_errorHandler->reportError({ "Initializer Expression does not match the variable's type", variableDefinition->nameToken.position });
 					return false;
 				}
@@ -223,7 +223,7 @@ namespace Fractal {
 		}
 
 		if (!analyzeExpression(returnStatement->expression)) return false;
-		if (!sameType(returnStatement->expression->expressionType, m_currentFunction->returnType)) {
+		if (!tryCast(&returnStatement->expression, m_currentFunction->returnType)) {
 			m_errorHandler->reportError({"Cannot return type '" + returnStatement->expression->expressionType->typeName() 
 				+ "' from a function which returns type '" + m_currentFunction->returnType->typeName() + "'", returnStatement->token.position});
 			return false;
@@ -338,7 +338,7 @@ namespace Fractal {
 
 		for (size_t i = 1; i < arraylist->elements.size(); i++) {
 			if (!analyzeExpression(arraylist->elements[i].expression)) return false;
-			if (!sameType(arraylist->elements[i].expression->expressionType, firstType)) {
+			if (!tryCast(&arraylist->elements[i].expression, firstType)) {
 				// Have to add element position for errors
 				m_errorHandler->reportError({ "Cannot insert element of type '" + arraylist->elements[i].expression->expressionType->typeName()
 					+ "' to array which holds elements of type '" + firstType->typeName() + "'", arraylist->elements[i].pos });
@@ -355,7 +355,7 @@ namespace Fractal {
 		std::shared_ptr<BinaryOperation> binary = static_pointer_cast<BinaryOperation>(expression);
 
 		if (!analyzeExpression(binary->left) || !analyzeExpression(binary->right)) return false;
-		if (!sameType(binary->left->expressionType, binary->right->expressionType)) {
+		if (!handleTypeConversion(&binary->left, &binary->right)) {
 			m_errorHandler->reportError({ "Cannot operate between '" + binary->right->expressionType->typeName()
 				+ "' and '" + binary->left->expressionType->typeName() + "' types", binary->operatorToken.position});
 			return false;
@@ -401,7 +401,7 @@ namespace Fractal {
 			return false;
 		}
 		for (size_t i = 0; i < paramList.size(); i++) {
-			if (!sameType(paramList[i], argList[i]->expression->expressionType)) {
+			if (!tryCast(&argList[i]->expression, paramList[i])) {
 				m_errorHandler->reportError({ "Expected argument type '" + paramList[i]->typeName() 
 					+ "', got '" + argList[i]->expression->expressionType->typeName(), call->funcToken.position});
 				return false;
@@ -462,7 +462,7 @@ namespace Fractal {
 		}
 
 		if (!analyzeExpression(assignment->left) || !analyzeExpression(assignment->right)) return false;
-		if (!sameType(assignment->left->expressionType, assignment->right->expressionType)) {
+		if (!tryCast(&assignment->right, assignment->right->expressionType)) {
 			m_errorHandler->reportError({ "Cannot assign expression of type '" + assignment->right->expressionType->typeName()
 				+ "' to variable of type '" + assignment->left->expressionType->typeName() + "'", assignment->operatorToken.position});
 			return false;
@@ -496,5 +496,36 @@ namespace Fractal {
 		}
 		if (access->left->getType() == NodeType::Identifier && !analyzeExpression(access->left)) return false;
 		return true;
+	}
+
+	bool SemanticAnalyzer::handleTypeConversion(ExpressionPtr* a, ExpressionPtr* b) {
+		if(sameType((*a)->expressionType, (*b)->expressionType)) return true;
+		Size x = isNumType((*a)->expressionType);
+		Size y = isNumType((*b)->expressionType);
+		if((bool)x && (bool)y) {
+			bool xGreater = (int)x > (int)y;
+			cast(xGreater ? b : a, xGreater ? (*a)->expressionType : (*b)->expressionType);
+			return true;
+		}
+
+		return false;
+	}
+
+	bool SemanticAnalyzer::tryCast(ExpressionPtr* original, TypePtr target) {
+		if(sameType((*original)->expressionType, target)) return true;
+		Size x = isNumType((*original)->expressionType);
+		Size y = isNumType(target);
+		if((bool)x && (bool)y) {
+			cast(original, target);
+			return true;
+		}
+
+		return false;
+	}
+
+	void SemanticAnalyzer::cast(ExpressionPtr* original, TypePtr target) {
+		std::shared_ptr<CastExpression> castExpr = std::make_shared<CastExpression>(*original, target);
+		castExpr->expressionType = target;
+		*original = castExpr;
 	}
 }

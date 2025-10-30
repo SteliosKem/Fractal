@@ -54,13 +54,6 @@ namespace Fractal {
 		R11 = 11,
 	};
 
-	enum class Size : uint8_t {
-		Byte = 1,
-		Word = 2,
-		DWord = 4,
-		QWord = 8
-	};
-
 	enum class ComparisonType {
 		Equal,
 		NotEqual,
@@ -78,6 +71,7 @@ namespace Fractal {
 		virtual ~Operand() = default;
 		virtual OperandType getType() const { return OperandType::Operand; }
 		virtual Size getSize() const { return Size::DWord; }
+		virtual void setSize(Size size) {}
 		virtual void print() const {}
 	};
 
@@ -98,6 +92,7 @@ namespace Fractal {
 		virtual OperandType getType() const override { return OperandType::Register; }
 		void print() const override { std::cout << '%' << (int)reg; }
 		virtual Size getSize() const override { return size; }
+		virtual void setSize(Size _size) override { size = size; }
 	public:
 		Register reg;
 		Size size;
@@ -109,6 +104,7 @@ namespace Fractal {
 		virtual OperandType getType() const override { return OperandType::Temp; }
 		void print() const override { std::cout << "Stack access " << stackOffest; }
 		virtual Size getSize() const override { return size; }
+		virtual void setSize(Size _size) override { size = size; }
 	public:
 		int64_t stackOffest;
 		Size size;

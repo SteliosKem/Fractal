@@ -89,10 +89,6 @@ sampleFunction();)";
             return false;
         }
 
-        for (auto& definition : parser.definitions())
-            definition->print();
-        for(auto& statement : parser.statements())
-            statement->print();
 
         if (!semanticAnalyzer.analyze(&parser.program())) {
             errorHandler.outputWarnings();
@@ -102,6 +98,12 @@ sampleFunction();)";
         errorHandler.outputWarnings();
 
         std::cout << "Analysis Completed" << '\n';
+
+
+        for (auto& definition : parser.definitions())
+            definition->print();
+        for(auto& statement : parser.statements())
+            statement->print();
 
         for (auto instruction : codeGenerator.generate(parser.program(), platform))
             instruction->print();

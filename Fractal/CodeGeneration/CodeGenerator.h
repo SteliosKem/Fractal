@@ -50,6 +50,7 @@ namespace Fractal {
 		OperandPtr getIdentifier(ExpressionPtr expression);
 		OperandPtr generateCall(ExpressionPtr expression, InstructionList* instructions);
 		OperandPtr idiv(std::shared_ptr<BinaryOperation> division, InstructionList* instructions);
+		OperandPtr generateCast(ExpressionPtr expression, InstructionList* instructions);
 
 		// -- INSTRUCTIONS --
 		InstructionPtr move(OperandPtr source, OperandPtr destination);

@@ -21,6 +21,7 @@ namespace Fractal {
 		Call,
 		Assignment,
 		MemberAccess,
+		Cast,
 
 		Statement,
 		NullStatement,
@@ -92,6 +93,7 @@ namespace Fractal {
 		TYPE(NodeType::IntegerLiteral)
 	public:
 		int64_t value;
+		Size size{Size::DWord};
 		Position position;
 	};
 
@@ -102,6 +104,7 @@ namespace Fractal {
 		TYPE(NodeType::FloatLiteral)
 	public:
 		double value;
+		Size size{Size::DWord};
 		Position position;
 	};
 
@@ -234,6 +237,20 @@ namespace Fractal {
 		ExpressionPtr left;
 		ExpressionPtr right;
 		Token operatorToken;
+	};
+
+	class CastExpression : public Expression {
+	public:
+		CastExpression(ExpressionPtr expr, TypePtr target) : expr{ expr }, target{ target } {}
+		void print() const override {
+			std::cout << "Cast ";
+			expr->print();
+			std::cout << " to "<< target->typeName();
+		}
+		TYPE(NodeType::Cast);
+	public:
+		ExpressionPtr expr;
+		TypePtr target;
 	};
 
 	// MISC

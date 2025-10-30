@@ -88,6 +88,7 @@ namespace Fractal {
 	}
 
 	void CodeGenerator::generateVariableDefinition(StatementPtr definition, InstructionList* instructions) {
+		std::cout << "mm";
 		std::shared_ptr<VariableDefinition> varDef = static_pointer_cast<VariableDefinition>(definition);
 		Size varSize = getTypeSize(varDef->variableType);
 		OperandPtr varPtr = std::make_shared<TempOperand>(allocateStack(varSize), varSize);
@@ -214,6 +215,7 @@ namespace Fractal {
 			case NodeType::Assignment: return generateAssignment(expression, instructions);
 			case NodeType::Identifier: return getIdentifier(expression);
 			case NodeType::Call: return generateCall(expression, instructions);
+			case NodeType::Cast: return generateCast(expression, instructions);
 			default: return nullptr;
 		}
 	}
@@ -375,6 +377,7 @@ namespace Fractal {
 
 	OperandPtr CodeGenerator::generateCall(ExpressionPtr expression, InstructionList* instructions) {
 		std::shared_ptr<Call> callExpr = static_pointer_cast<Call>(expression);
+		if(m_platform == Platform::Mac) callExpr->funcToken.value = "_" + callExpr->funcToken.value;
 		int stackPadding = (m_platform == Platform::Win ? 32 : 0);
 		if (callExpr->argumentList.size() % 2 == 0) stackPadding += 8;
 
@@ -400,6 +403,22 @@ namespace Fractal {
 		instructions->push_back(add(reg(Register::SP, Size::QWord), intConst(8 * stackArgs + stackPadding)));
 		
 		return reg(Register::AX, Size::DWord);
+	}
+
+	OperandPtr CodeGenerator::generateCast(ExpressionPtr expression, InstructionList* instructions) {
+		std::shared_ptr<CastExpression> cast = static_pointer_cast<CastExpression>(expression);
+		Size typeSize = getTypeSize(cast->target);
+		OperandPtr temp = std::make_shared<TempOperand>(allocateStack(typeSize), typeSize);
+		OperandPtr exprOutput = generateExpression(cast->expr, instructions);
+		if((int)getTypeSize(cast->expr->expressionType) < (int)typeSize) {
+			instructions->push_back(move(exprOutput, temp));
+		}
+		else {
+			std::cout << "SIZE1: " << (int)exprOutput->getSize() << " ";
+			exprOutput->setSize(getTypeSize(cast->target));
+			std::cout << "SIZE2: " << (int)exprOutput->getSize() << " ";
+			instructions->push_back(move(exprOutput, temp));
+		}
 	}
 
 	uint64_t CodeGenerator::generateComparisonIndex() {
@@ -510,7 +529,7 @@ namespace Fractal {
 
 	void CodeGenerator::validateMoveOperands(InstructionList* instructions, size_t i, OperandPtr source, OperandPtr* destination) {
 		if (isTemp(source) && isTemp(*destination)) {
-			OperandPtr scratchReg = reg(Register::R10);
+			OperandPtr scratchReg = reg(Register::R10, source->getSize());
 			OperandPtr oldDestination = *destination;
 			*destination = scratchReg;
 			instructions->emplace(instructions->begin() + i + 1, move(scratchReg, oldDestination));

@@ -4,17 +4,13 @@ Program execution starts from the first statement outside of the definitions hea
 
 <define>
 
-@external
-fn putchar(a: i32): i32;
-
 fn main(): i32 {
-    let i: i32 = 0;
-    while i < 26 => {
-        putchar(65 + i);
-        i = i + 1;
-    }
+    let b: i64 = 200;
+    //return 5;
+}
+
+fn a(): i32 {
+    
 }
 
 <!define>
-
-main();
