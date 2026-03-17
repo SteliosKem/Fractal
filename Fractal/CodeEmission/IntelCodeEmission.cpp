@@ -10,11 +10,14 @@ namespace Fractal {
 		m_instructions = instructions;
 		m_externals = externals;
 
-		std::string writeExt = "extern ";
-		for (auto& str : *externals)
-			writeExt += str + ", ";
+		if (!externals->empty()) {
+			std::string writeExt = "extern ";
+			for (auto& str : *externals)
+				writeExt += str + ", ";
 
-		writeLine(writeExt);
+			writeLine(writeExt);
+		}
+
 
 		writeLine("section .text");
 
@@ -92,7 +95,7 @@ namespace Fractal {
 		std::shared_ptr<MoveInstruction> moveInstruction = static_pointer_cast<MoveInstruction>(instruction);
 
 		writeILine((moveInstruction->signExtend ? "movsx " : "mov ")
-				+ getOperandStr(moveInstruction->destination) + ", " + getOperandStr(moveInstruction->source));
+				+ getOperandStr(moveInstruction->destination, moveInstruction->destSize) + ", " + getOperandStr(moveInstruction->source, moveInstruction->srcSize));
 	}
 
 	void IntelCodeEmission::emitNegation(InstructionPtr instruction) {
@@ -175,11 +178,12 @@ namespace Fractal {
 		writeILine("ret");
 	}
 
-	std::string IntelCodeEmission::getRegister(OperandPtr operand) {
+	std::string IntelCodeEmission::getRegister(OperandPtr operand, Size externalSize) {
 		std::shared_ptr<RegisterOperand> reg = static_pointer_cast<RegisterOperand>(operand);
+		Size s = ((bool)externalSize ? externalSize : reg->size);
 		std::string toRet = "";
 		if ((uint8_t)reg->reg < 8) {
-			switch (reg->size) {
+			switch (s) {
 			case Size::QWord: toRet = "r"; break;
 			case Size::DWord: toRet = "e"; break;
 			}
@@ -200,7 +204,7 @@ namespace Fractal {
 			default: return "";
 		}
 		if ((uint8_t)reg->reg >= 8) {
-			switch (reg->size) {
+			switch (s) {
 			case Size::QWord: break;
 			case Size::DWord: toRet += "d"; break;
 			}
@@ -208,12 +212,12 @@ namespace Fractal {
 		return toRet;
 	}
 
-	std::string IntelCodeEmission::getOperandStr(OperandPtr operand) {
+	std::string IntelCodeEmission::getOperandStr(OperandPtr operand, Size externalSize) {
 		switch (operand->getType())
 		{
 		case OperandType::IntegerConstant: return std::to_string(static_pointer_cast<IntegerConstant>(operand)->integer);
-		case OperandType::Register: return getRegister(static_pointer_cast<RegisterOperand>(operand));
-		case OperandType::Temp: return getTemp(operand);
+		case OperandType::Register: return getRegister(static_pointer_cast<RegisterOperand>(operand), externalSize);
+		case OperandType::Temp: return getTemp(operand, externalSize);
 		default:
 			return "";
 		}
@@ -228,10 +232,10 @@ namespace Fractal {
 		}
 	}
 
-	std::string IntelCodeEmission::getTemp(OperandPtr operand) {
+	std::string IntelCodeEmission::getTemp(OperandPtr operand, Size externalSize) {
 		std::shared_ptr<TempOperand> temp = static_pointer_cast<TempOperand>(operand);
 		std::string sign = temp->stackOffest < 0 ? "+" : "-";
-		return getSizeMemory(temp->size) + " [rbp " + sign + " " + std::to_string(abs(temp->stackOffest)) + "]";
+		return getSizeMemory((bool)externalSize ? externalSize : temp->size) + " [rbp " + sign + " " + std::to_string(abs(temp->stackOffest)) + "]";
 	}
 
 	std::string IntelCodeEmission::getComparisonType(ComparisonType type) {

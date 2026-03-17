@@ -88,7 +88,6 @@ namespace Fractal {
 	}
 
 	void CodeGenerator::generateVariableDefinition(StatementPtr definition, InstructionList* instructions) {
-		std::cout << "mm";
 		std::shared_ptr<VariableDefinition> varDef = static_pointer_cast<VariableDefinition>(definition);
 		Size varSize = getTypeSize(varDef->variableType);
 		OperandPtr varPtr = std::make_shared<TempOperand>(allocateStack(varSize), varSize);
@@ -410,15 +409,9 @@ namespace Fractal {
 		Size typeSize = getTypeSize(cast->target);
 		OperandPtr temp = std::make_shared<TempOperand>(allocateStack(typeSize), typeSize);
 		OperandPtr exprOutput = generateExpression(cast->expr, instructions);
-		if((int)getTypeSize(cast->expr->expressionType) < (int)typeSize) {
-			instructions->push_back(move(exprOutput, temp));
-		}
-		else {
-			std::cout << "SIZE1: " << (int)exprOutput->getSize() << " ";
-			exprOutput->setSize(getTypeSize(cast->target));
-			std::cout << "SIZE2: " << (int)exprOutput->getSize() << " ";
-			instructions->push_back(move(exprOutput, temp));
-		}
+		exprOutput->setSize(typeSize);
+		instructions->push_back(move(exprOutput, temp));
+		return temp;
 	}
 
 	uint64_t CodeGenerator::generateComparisonIndex() {
@@ -434,7 +427,10 @@ namespace Fractal {
 	}
 
 	InstructionPtr CodeGenerator::move(OperandPtr source, OperandPtr destination) {
-		return std::make_shared<MoveInstruction>(source, destination);
+		auto instr = std::make_shared<MoveInstruction>(source, destination);
+		instr->destSize = instr->destination->getSize();
+		instr->srcSize = instr->destination->getSize();
+		return instr;
 	}
 
 	InstructionPtr CodeGenerator::negate(OperandPtr source) {
@@ -547,15 +543,20 @@ namespace Fractal {
 
 	void CodeGenerator::validateMove(InstructionList* instructions, size_t i) {
 		std::shared_ptr<MoveInstruction> moveInstruction = static_pointer_cast<MoveInstruction>((*instructions)[i]);
-		if(moveInstruction->destination->getSize() > moveInstruction->source->getSize()) {
+		if (moveInstruction->destSize < moveInstruction->srcSize && moveInstruction->source->getType() != OperandType::IntegerConstant) {
+			moveInstruction->srcSize = moveInstruction->destSize;
+		}
+		if(moveInstruction->destSize > moveInstruction->srcSize && moveInstruction->source->getType() != OperandType::IntegerConstant) {
 			OperandPtr scratchReg = reg(Register::AX, moveInstruction->destination->getSize());
 			OperandPtr oldDest = moveInstruction->destination;
 			moveInstruction->destination = scratchReg;
 			moveInstruction->signExtend = true;
 			instructions->emplace(instructions->begin() + i + 1, move(scratchReg, oldDest));
 		}
-		else
+		else {
+			
 			validateMoveOperands(instructions, i, moveInstruction->source, &moveInstruction->destination);
+		}
 	}
 
 	void CodeGenerator::validateAdd(InstructionList* instructions, size_t i) {

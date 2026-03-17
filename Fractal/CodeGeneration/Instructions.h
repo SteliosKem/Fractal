@@ -92,7 +92,7 @@ namespace Fractal {
 		virtual OperandType getType() const override { return OperandType::Register; }
 		void print() const override { std::cout << '%' << (int)reg; }
 		virtual Size getSize() const override { return size; }
-		virtual void setSize(Size _size) override { size = size; }
+		virtual void setSize(Size _size) override { size = _size; }
 	public:
 		Register reg;
 		Size size;
@@ -104,7 +104,7 @@ namespace Fractal {
 		virtual OperandType getType() const override { return OperandType::Temp; }
 		void print() const override { std::cout << "Stack access " << stackOffest; }
 		virtual Size getSize() const override { return size; }
-		virtual void setSize(Size _size) override { size = size; }
+		virtual void setSize(Size _size) override { size = _size; }
 	public:
 		int64_t stackOffest;
 		Size size;
@@ -154,6 +154,8 @@ namespace Fractal {
 	public:
 		OperandPtr source;
 		OperandPtr destination;
+		Size srcSize{ Size::None };
+		Size destSize{ Size::None };
 		bool signExtend{ false };
 	};
 

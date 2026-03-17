@@ -114,11 +114,11 @@ sampleFunction();)";
             std::cout << emitter.emit(&codeGenerator.instructions(), codeGenerator.externals(), Platform::Win);
 
             std::filesystem::path intermediate = projectDir / project.outPath / "intermediate";
-            if(!std::filesystem::exists(intermediate))
+            if (!std::filesystem::exists(intermediate))
                 std::filesystem::create_directory(intermediate);
             writeFile(emitter.output(), intermediate / (project.name + ".asm"));
 
-            std::string path = project.outPath + "\\intermediate\\" + project.name;
+            std::string path = project.outPath + "/intermediate/" + project.name;
 
             system(("nasm -f elf64 " + path + ".asm -o " + path + ".o").c_str());
             system(("gcc " + path + ".o -o " + path + ".exe").c_str());

@@ -37,8 +37,8 @@ namespace Fractal {
 		void emitPush(InstructionPtr instruction);
 		void emitReturn();
 
-		std::string getOperandStr(OperandPtr operand);
-		std::string getTemp(OperandPtr operand);
+		std::string getOperandStr(OperandPtr operand, Size externalSize = Size::None);
+		std::string getTemp(OperandPtr operand, Size externalSize);
 
 		// -- UTILITY --
 
@@ -50,7 +50,7 @@ namespace Fractal {
 		void writeILine(const std::string& line);
 		void label(const std::string& name);
 		std::string getSize(Size size);
-		std::string getRegister(OperandPtr operand);
+		std::string getRegister(OperandPtr operand, Size externalSize);
 	private:
 		const InstructionList* m_instructions;
 		Platform m_platform;

@@ -33,7 +33,7 @@ private:
 int main(int argc, char** argv)
 {
 	if(argc < 2) {
-		std::cout << "Expected arguments. Run Fractal --help to see the correct usage of the command.";
+		/*std::cout << "Expected arguments. Run Fractal --help to see the correct usage of the command.";
         Fractal::ErrorHandler errorHandler;
         Fractal::Lexer lexer(&errorHandler);
         Fractal::Parser parser(&errorHandler);
@@ -72,7 +72,9 @@ int main(int argc, char** argv)
         std::cout << '\n';
 
         std::cout << emitter.emit(&codeGenerator.instructions(), codeGenerator.externals(), Fractal::Platform::Win);
-		return EXIT_FAILURE;
+		return EXIT_FAILURE;*/
+		Fractal::buildProject("../../../../Test/");
+		return 0;
 	}
 	InputParser input(argc, argv);
     if(input.cmdOptionExists("-h") || input.cmdOptionExists("--help")){
