@@ -22,6 +22,8 @@ namespace Fractal {
 		Assignment,
 		MemberAccess,
 		Cast,
+		AddressOf,
+		Dereference,
 
 		Statement,
 		NullStatement,
@@ -251,6 +253,30 @@ namespace Fractal {
 	public:
 		ExpressionPtr expr;
 		TypePtr target;
+	};
+
+	class DereferenceExpression : public Expression {
+	public:
+		DereferenceExpression(ExpressionPtr expression) : expr{ expression } {}
+		void print() const override {
+			std::cout << "Dereference ";
+			expr->print();
+		}
+		TYPE(NodeType::Dereference);
+	public:
+		ExpressionPtr expr;
+	};
+
+	class AddressOfExpression : public Expression {
+	public:
+		AddressOfExpression(ExpressionPtr expression) : expr{ expression } {}
+		void print() const override {
+			std::cout << "Address of ";
+			expr->print();
+		}
+		TYPE(NodeType::AddressOf);
+	public:
+		ExpressionPtr expr;
 	};
 
 	// MISC

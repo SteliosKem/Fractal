@@ -73,7 +73,7 @@ int main(int argc, char** argv)
 
         std::cout << emitter.emit(&codeGenerator.instructions(), codeGenerator.externals(), Fractal::Platform::Win);
 		return EXIT_FAILURE;*/
-		Fractal::buildProject("../../../../Test/");
+		//Fractal::buildProject("../../../../Test/");
 		return 0;
 	}
 	InputParser input(argc, argv);

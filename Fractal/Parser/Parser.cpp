@@ -11,6 +11,9 @@ namespace Fractal {
 			case DOT:
 			case ARROW:
 				return 110;
+			case AT:
+			case AMPERSAND:
+				return 100;
 			case STAR:
 			case SLASH:
 				return 80;
@@ -139,6 +142,10 @@ namespace Fractal {
 			return expressionIdentifier(token);
 		case LEFT_BRACKET:
 			return expressionArray();
+		case AT:
+			return expressionDereference();
+		case AMPERSAND:
+			return expressionAddressOf();
 		default:
 			m_errorHandler->reportError({ "Expected expression ", currentToken().position});
 			return nullptr;
@@ -158,6 +165,16 @@ namespace Fractal {
 		default: return nullptr;
 		}
 		
+	}
+
+	ExpressionPtr Parser::expressionDereference() {
+		ExpressionPtr expr = parseExpression(100);
+		return std::make_shared<DereferenceExpression>(expr);
+	}
+
+	ExpressionPtr Parser::expressionAddressOf() {
+		ExpressionPtr expr = parseExpression(100);
+		return std::make_shared<AddressOfExpression>(expr);
 	}
 
 	ExpressionPtr Parser::expressionUnary(const Token& token) {

@@ -89,6 +89,11 @@ sampleFunction();)";
             return false;
         }
 
+        for (auto& definition : parser.definitions())
+            definition->print();
+        for(auto& statement : parser.statements())
+            statement->print();
+
 
         if (!semanticAnalyzer.analyze(&parser.program())) {
             errorHandler.outputWarnings();

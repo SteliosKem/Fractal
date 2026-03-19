@@ -12,6 +12,8 @@ namespace Fractal {
 		Null,
 		I32,
 		I64,
+		U32,
+		U64,
 		F32,
 		F64,
 		User,
@@ -36,6 +38,8 @@ namespace Fractal {
 		case BasicType::Null: return "Null";
 		case BasicType::I32: return "i32";
 		case BasicType::I64: return "i64";
+		case BasicType::U32: return "u32";
+		case BasicType::U64: return "u64";
 		case BasicType::F32: return "f32";
 		case BasicType::F64: return "f64";
 		case BasicType::String: return "String";
@@ -150,8 +154,10 @@ namespace Fractal {
 		switch (funType->type)
 		{
 		case BasicType::I32:
+		case BasicType::U32:
 			return Size::DWord;
 		case BasicType::I64:
+		case BasicType::U64:
 			return Size::QWord;
 		default:
 			return Size::None;

@@ -301,8 +301,34 @@ namespace Fractal {
 			case NodeType::Call: return analyzeExpressionCall(expression);
 			case NodeType::Assignment: return analyzeExpressionAssignment(expression);
 			case NodeType::MemberAccess: return analyzeExpressionMemberAccess(expression);
+			case NodeType::AddressOf: return analyzeExpressionAddress(expression);
+			case NodeType::Dereference: return analyzeExpressionDereference(expression);
 			default: return false;
 		}
+	}
+
+	bool SemanticAnalyzer::analyzeExpressionAddress(ExpressionPtr expression) {
+		std::shared_ptr<AddressOfExpression> expr = static_pointer_cast<AddressOfExpression>(expression);
+		if(!analyzeExpression(expr->expr)) return false;
+
+		expression->expressionType = std::make_shared<PointerType>(expr->expr->expressionType);
+		if(expr->expr->getType() != NodeType::Identifier && expr->expr->getType() != NodeType::MemberAccess) {
+			m_errorHandler->reportError({ "Cannot get address of a non-lvalue", {} });
+			return false;
+		}
+		return true;
+	}
+
+	bool SemanticAnalyzer::analyzeExpressionDereference(ExpressionPtr expression) {
+		std::shared_ptr<DereferenceExpression> expr = static_pointer_cast<DereferenceExpression>(expression);
+		if(!analyzeExpression(expr->expr)) return false;
+
+		if(expr->expr->expressionType->typeInfo() != TypeInfo::Pointer) {
+			m_errorHandler->reportError({ "Expected pointer type for dereferencing, got '" + expr->expr->expressionType->typeName() +"'", {} });
+			return false;
+		}
+		expression->expressionType = static_pointer_cast<PointerType>(expr->expr->expressionType)->pointingType;
+		return true;
 	}
 
 	bool SemanticAnalyzer::analyzeExpressionInteger(ExpressionPtr expression) {

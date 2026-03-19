@@ -72,6 +72,8 @@ namespace Fractal {
 		bool analyzeExpressionCall(ExpressionPtr expression);
 		bool analyzeExpressionAssignment(ExpressionPtr expression);
 		bool analyzeExpressionMemberAccess(ExpressionPtr expression);
+		bool analyzeExpressionDereference(ExpressionPtr expression);
+		bool analyzeExpressionAddress(ExpressionPtr expression);
 	private:
 		ProgramFile* m_program{ nullptr };
 		SymbolTable m_globalTable{};

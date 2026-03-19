@@ -96,6 +96,8 @@ namespace Fractal {
 			KEY_I16,
 			KEY_I32,
 			KEY_I64,
+			KEY_U32,
+			KEY_U64,
 			KEY_F32,
 			KEY_F64,
 			KEY_BOOL,
@@ -158,6 +160,8 @@ namespace Fractal {
 		{ "i16"			, KEY_I16	},
 		{ "i32"			, KEY_I32	},
 		{ "i64"			, KEY_I64	},
+		{ "u32"			, KEY_U32	},
+		{ "u64"			, KEY_U64	},
 		{ "f32"			, KEY_F32	},
 		{ "f64"			, KEY_F64	},
 		{ "bool"		, KEY_BOOL	},
@@ -181,6 +185,8 @@ namespace Fractal {
 		case KEY_I16:
 		case KEY_I32:
 		case KEY_I64:
+		case KEY_U32:
+		case KEY_U64:
 		case KEY_F32:
 		case KEY_F64:
 		case KEY_BOOL:
@@ -200,6 +206,10 @@ namespace Fractal {
 			return BasicType::I32;
 		case KEY_I64:
 			return BasicType::I64;
+		case KEY_U32:
+			return BasicType::U32;
+		case KEY_U64:
+			return BasicType::U64;
 		case KEY_F32:
 			return BasicType::F64;
 		case KEY_F64:
