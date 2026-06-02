@@ -1,558 +1,556 @@
-// SemanticAnalyzer.h
-// Contains the SemanticAnalyzer Class member definitions
-// Copyright (c) 2025-present, Stylianos Kementzetzidis
+// SemanticAnalyzer.cpp
+// Visitor-based semantic analyzer implementation. Each visit() method does
+// the work that the old analyzeExpressionX / analyzeStatementX / analyze
+// DefinitionX functions did, but takes the concrete node by reference (no
+// static_pointer_cast) and reports errors through m_ok rather than returning
+// bool down a deep call chain.
 
 #include "SemanticAnalyzer.h"
 
 namespace Fractal {
-	bool SemanticAnalyzer::findNameGlobal(const Token& nameToken) {
-		if (m_globalTable.find(nameToken.value) != m_globalTable.end()) return true;
-		return false;
-	}
 
-	int32_t SemanticAnalyzer::findNameLocal(const Token& nameToken) {
-		for (int32_t i = m_localStack.size() - 1; i >= 0; i--) {
-			if (m_localStack[i].find(nameToken.value) != m_localStack[i].end()) return i;
-		}
-		return -1;
-	}
+// -- Symbol lookup -----------------------------------------------------------
 
-	std::string SemanticAnalyzer::createUnique(const std::string& name) {
-		return name + "." + std::to_string(m_uniqueIndex++);
-	}
-
-	bool SemanticAnalyzer::analyze(ProgramFile* program) {
-		m_program = program;
-
-		// Reset per-run state so the analyzer can be reused safely across files.
-		m_localStack.clear();
-		m_loopStack.clear();
-		m_currentFunction = nullptr;
-		m_uniqueIndex = 0;
-		m_loopIndex = 0;
-
-		for (auto& definition : m_program->definitions)
-			if (!analyzeDefinition(definition)) return false;
-
-		pushScope();
-		for (auto& statement : m_program->statements)
-			if (!analyzeStatement(statement)) return false;
-		popScope();
-
-		return true;
-	}
-
-	bool SemanticAnalyzer::saveDefinitions(ProgramFile* program) {
-		m_program = program;
-
-		for(auto definition : m_program->definitions)
-			if(!analyzeDefinition(definition)) return false;
-		return true;
-	}
-
-	bool SemanticAnalyzer::analyzeDefinition(DefinitionPtr definition, bool toSave) {
-		switch (definition->getType()) {
-			case NodeType::FunctionDefinition: return analyzeDefinitionFunction(definition, toSave);
-			case NodeType::VariableDefinition: return analyzeDefinitionVariable(definition, toSave);
-			case NodeType::ClassDefinition: return analyzeDefinitionClass(definition, toSave);
-			case NodeType::DecoratedDefinition: return analyzeDecoratedDefinition(definition, toSave);
-			default:
-				return false;
-		}
-	}
-
-	bool SemanticAnalyzer::analyzeDecoratedDefinition(DefinitionPtr definition, bool toSave) {
-		std::shared_ptr<DecoratedDefinition> decorated = static_pointer_cast<DecoratedDefinition>(definition);
-		if(decorated->decorator == Decorator::External)
-			return analyzeDefinition(decorated->definition);
-		return true;
-	}
-
-	void SemanticAnalyzer::pushScope() {
-		m_localStack.push_back({});
-	}
-
-	void SemanticAnalyzer::popScope() {
-		m_localStack.pop_back();
-	}
-
-	SymbolTable& SemanticAnalyzer::topScope() {
-		return m_localStack[m_localStack.size() - 1];
-	}
-
-	bool SemanticAnalyzer::analyzeDefinitionFunction(DefinitionPtr definition, bool toSave) {
-		std::shared_ptr<FunctionDefinition> functionDefinition = static_pointer_cast<FunctionDefinition>(definition);
-
-		pushScope();
-
-		if (findNameGlobal(functionDefinition->nameToken)) { 
-			m_errorHandler->reportError({ "Function '" + functionDefinition->nameToken.value + "' is already defined", functionDefinition->nameToken.position });
-			return false;
-		}
-
-		if (!analyzeParameters(functionDefinition->parameterList)) return false;
-
-		std::vector<TypePtr> parameterTypes;
-		for (auto param : functionDefinition->parameterList) {
-			parameterTypes.push_back(param->type);
-		}
-
-		m_currentFunction = std::make_shared<FunctionType>(functionDefinition->returnType, parameterTypes);
-		m_globalTable[functionDefinition->nameToken.value] = SymbolEntry{ functionDefinition->nameToken.value, m_currentFunction };
-
-		if (toSave) {
-			popScope();
-			return true;
-		}
-		
-		if (!analyzeStatement(functionDefinition->functionBody)) return false;
-
-		m_currentFunction = nullptr;
-		popScope();
-		
-		return true;
-	}
-
-	bool SemanticAnalyzer::analyzeParameters(const ParameterList& paramList) {
-		std::vector<std::string> paramListCheck;
-		for (const auto& parameter : paramList) {
-			if (findNameGlobal(parameter->nameToken))
-				m_errorHandler->reportWarning({ "Parameter '" + parameter->nameToken.value + "' shadows a global name", parameter->nameToken.position });
-			if (std::find(paramListCheck.begin(), paramListCheck.end(), parameter->nameToken.value) != paramListCheck.end()) {
-				m_errorHandler->reportError({ "Parameter '" + parameter->nameToken.value + "' is already defined", parameter->nameToken.position });
-				return false;
-			}
-			paramListCheck.push_back(parameter->nameToken.value);
-			std::string newName = createUnique(parameter->nameToken.value);
-			topScope()[parameter->nameToken.value] = { newName, parameter->type };
-			parameter->nameToken.value = newName;
-		}
-		return true;
-	}
-
-	bool SemanticAnalyzer::analyzeDefinitionVariable(DefinitionPtr definition, bool toSave) { 
-		std::shared_ptr<VariableDefinition> variableDefinition = static_pointer_cast<VariableDefinition>(definition);
-
-		if (variableDefinition->isGlobal) {
-			if (findNameGlobal(variableDefinition->nameToken)) {
-				m_errorHandler->reportError({ "Variable '" + variableDefinition->nameToken.value + "' is already defined globally", variableDefinition->nameToken.position });
-				return false;
-			}
-
-			m_globalTable[variableDefinition->nameToken.value] = SymbolEntry{ variableDefinition->nameToken.value, variableDefinition->variableType };
-		}
-		else {
-			int32_t index = findNameLocal(variableDefinition->nameToken);
-			if (index > -1) {
-				m_errorHandler->reportError({ "Variable '" + variableDefinition->nameToken.value + "' is already defined in local scope", variableDefinition->nameToken.position });
-				return false;
-			}
-
-			topScope()[variableDefinition->nameToken.value] = SymbolEntry{ variableDefinition->nameToken.value, variableDefinition->variableType };
-		}
-
-		if (variableDefinition->initializer) {
-			if (!analyzeExpression(variableDefinition->initializer)) return false;
-			if (variableDefinition->variableType->typeInfo() == TypeInfo::Fundamental
-				&& static_pointer_cast<FundamentalType>(variableDefinition->variableType)->type == BasicType::None)
-				variableDefinition->variableType = variableDefinition->initializer->expressionType;
-			else {
-				if (!tryCast(&variableDefinition->initializer, variableDefinition->variableType)) {
-					m_errorHandler->reportError({ "Initializer Expression does not match the variable's type", variableDefinition->nameToken.position });
-					return false;
-				}
-			}
-		}
-
-		return true;
-	}
-
-	bool SemanticAnalyzer::analyzeDefinitionClass(DefinitionPtr definition, bool toSave) { 
-		std::shared_ptr<ClassDefinition> classDef = static_pointer_cast<ClassDefinition>(definition);
-		m_userDefinedTypes.push_back(classDef->className);
-		return true;
-	}
-
-	// -- STATEMENTS --
-	bool SemanticAnalyzer::analyzeStatement(StatementPtr statement) {
-		switch (statement->getType()) {
-			case NodeType::CompoundStatement: return analyzeStatementCompound(statement);
-			case NodeType::ExpressionStatement: return analyzeStatementExpression(statement);
-			case NodeType::ReturnStatement: return analyzeStatementReturn(statement);
-			case NodeType::LoopStatement: return analyzeStatementLoop(statement);
-			case NodeType::IfStatement: return analyzeStatementIf(statement);
-			case NodeType::WhileStatement: return analyzeStatementWhile(statement);
-			case NodeType::BreakStatement: return analyzeStatementBreak(statement);
-			case NodeType::ContinueStatement: return analyzeStatementContinue(statement);
-			case NodeType::VariableDefinition: return analyzeDefinitionVariable(static_pointer_cast<Definition>(statement));
-			case NodeType::NullStatement: return true;
-			default: return false;
-		}
-	}
-
-	bool SemanticAnalyzer::analyzeStatementExpression(StatementPtr statement) { 
-		std::shared_ptr<ExpressionStatement> expressionStatement = static_pointer_cast<ExpressionStatement>(statement);
-
-		switch (expressionStatement->expression->getType()) {
-		case NodeType::Call:
-		case NodeType::MemberAccess:
-		case NodeType::Assignment:
-			break;
-		default:
-			m_errorHandler->reportWarning({ "Unused expression", expressionStatement->expressionPos });
-		}
-
-		return analyzeExpression(expressionStatement->expression);
-	}
-
-	bool SemanticAnalyzer::analyzeStatementCompound(StatementPtr statement) {
-		pushScope();
-		std::shared_ptr<CompoundStatement> compoundStatement = static_pointer_cast<CompoundStatement>(statement);
-
-		for (auto ptr : compoundStatement->statements)
-			if (!analyzeStatement(ptr)) return false;
-
-		popScope();
-		return true;
-	}
-
-	bool SemanticAnalyzer::analyzeStatementReturn(StatementPtr statement) {
-		std::shared_ptr<ReturnStatement> returnStatement = static_pointer_cast<ReturnStatement>(statement);
-		if (!m_currentFunction) {
-			m_errorHandler->reportError({"Cannot use return outside of a function body", returnStatement->token.position});
-			return false;
-		}
-
-		if (!analyzeExpression(returnStatement->expression)) return false;
-		if (!tryCast(&returnStatement->expression, m_currentFunction->returnType)) {
-			m_errorHandler->reportError({"Cannot return type '" + returnStatement->expression->expressionType->typeName() 
-				+ "' from a function which returns type '" + m_currentFunction->returnType->typeName() + "'", returnStatement->token.position});
-			return false;
-		}
-		return true;
-	}
-
-	bool SemanticAnalyzer::analyzeStatementIf(StatementPtr statement) {
-		std::shared_ptr<IfStatement> ifStatement = static_pointer_cast<IfStatement>(statement);
-
-		if (!analyzeExpression(ifStatement->condition)) return false;
-		if (!analyzeStatement(ifStatement->ifBody)) return false;
-		if (ifStatement->elseBody)
-			if (!analyzeStatement(ifStatement->elseBody))
-				return false;
-
-		return true;
-	}
-
-	bool SemanticAnalyzer::analyzeStatementWhile(StatementPtr statement) {
-		std::shared_ptr<WhileStatement> whileStatement = static_pointer_cast<WhileStatement>(statement);
-
-		m_loopStack.push_back(m_loopIndex++);
-
-		if (!analyzeExpression(whileStatement->condition)) return false;
-		if (!analyzeStatement(whileStatement->loopBody)) return false;
-
-		m_loopStack.pop_back();
-
-		return true;
-	}
-
-	bool SemanticAnalyzer::analyzeStatementLoop(StatementPtr statement) {
-		std::shared_ptr<LoopStatement> loopStatement = static_pointer_cast<LoopStatement>(statement);
-		m_loopStack.push_back(m_loopIndex++);
-
-		if (!analyzeStatement(loopStatement->loopBody)) return false;
-
-		m_loopStack.pop_back();
-
-		return true;
-	}
-
-	bool SemanticAnalyzer::analyzeStatementBreak(StatementPtr statement) {
-		std::shared_ptr<BreakStatement> breakStatement = static_pointer_cast<BreakStatement>(statement);
-		if (m_loopStack.size() == 0) {
-			m_errorHandler->reportError({"Cannot use break outside of a loop", breakStatement->token.position});
-			return false;
-		}
-		breakStatement->loopIndex = m_loopStack[m_loopStack.size() - 1];
-		return true;
-	}
-
-	bool SemanticAnalyzer::analyzeStatementContinue(StatementPtr statement) {
-		std::shared_ptr<ContinueStatement> continueStatement = static_pointer_cast<ContinueStatement>(statement);
-		if (m_loopStack.size() == 0) {
-			m_errorHandler->reportError({ "Cannot use continue outside of a loop", continueStatement->token.position });
-			return false;
-		}
-		continueStatement->loopIndex = m_loopStack[m_loopStack.size() - 1];
-		return true;
-	}
-
-	// Expressions
-	bool SemanticAnalyzer::analyzeExpression(ExpressionPtr expression) { 
-		switch (expression->getType()) {
-			case NodeType::IntegerLiteral: return analyzeExpressionInteger(expression);
-			case NodeType::StringLiteral: return analyzeExpressionString(expression);
-			case NodeType::CharacterLiteral: return analyzeExpressionCharacter(expression);
-			case NodeType::FloatLiteral: return analyzeExpressionFloat(expression);
-			case NodeType::ArrayList: return analyzeExpressionArray(expression);
-			case NodeType::BinaryOperation: return analyzeExpressionBinary(expression);
-			case NodeType::UnaryOperation: return analyzeExpressionUnary(expression);
-			case NodeType::Identifier: return analyzeExpressionIdentifier(expression);
-			case NodeType::Call: return analyzeExpressionCall(expression);
-			case NodeType::Assignment: return analyzeExpressionAssignment(expression);
-			case NodeType::MemberAccess: return analyzeExpressionMemberAccess(expression);
-			case NodeType::AddressOf: return analyzeExpressionAddress(expression);
-			case NodeType::Dereference: return analyzeExpressionDereference(expression);
-			default: return false;
-		}
-	}
-
-	bool SemanticAnalyzer::analyzeExpressionAddress(ExpressionPtr expression) {
-		std::shared_ptr<AddressOfExpression> expr = static_pointer_cast<AddressOfExpression>(expression);
-		if(!analyzeExpression(expr->expr)) return false;
-
-		expression->expressionType = std::make_shared<PointerType>(expr->expr->expressionType);
-		if(expr->expr->getType() != NodeType::Identifier && expr->expr->getType() != NodeType::MemberAccess) {
-			m_errorHandler->reportError({ "Cannot get address of a non-lvalue", {} });
-			return false;
-		}
-		return true;
-	}
-
-	bool SemanticAnalyzer::analyzeExpressionDereference(ExpressionPtr expression) {
-		std::shared_ptr<DereferenceExpression> expr = static_pointer_cast<DereferenceExpression>(expression);
-		if(!analyzeExpression(expr->expr)) return false;
-
-		if(expr->expr->expressionType->typeInfo() != TypeInfo::Pointer) {
-			m_errorHandler->reportError({ "Expected pointer type for dereferencing, got '" + expr->expr->expressionType->typeName() +"'", {} });
-			return false;
-		}
-		expression->expressionType = static_pointer_cast<PointerType>(expr->expr->expressionType)->pointingType;
-		return true;
-	}
-
-	bool SemanticAnalyzer::analyzeExpressionInteger(ExpressionPtr expression) {
-		expression->expressionType = std::make_shared<FundamentalType>(BasicType::I32);
-		return true;
-	}
-
-	bool SemanticAnalyzer::analyzeExpressionString(ExpressionPtr expression) {
-		expression->expressionType = std::make_shared<FundamentalType>(BasicType::String);
-		return true;
-	}
-
-	bool SemanticAnalyzer::analyzeExpressionCharacter(ExpressionPtr expression) {
-		expression->expressionType = std::make_shared<FundamentalType>(BasicType::Character);
-		return true;
-	}
-
-	bool SemanticAnalyzer::analyzeExpressionFloat(ExpressionPtr expression) {
-		expression->expressionType = std::make_shared<FundamentalType>(BasicType::F32);
-		return true;
-	}
-
-	bool SemanticAnalyzer::analyzeExpressionArray(ExpressionPtr expression) {
-		std::shared_ptr<ArrayList> arraylist = static_pointer_cast<ArrayList>(expression);
-
-		TypePtr firstType;
-
-		if (arraylist->elements.size() > 0) {
-			ArrayElement first = arraylist->elements[0];
-			if (!analyzeExpression(first.expression)) return false;
-			firstType = first.expression->expressionType;
-		}
-
-		for (size_t i = 1; i < arraylist->elements.size(); i++) {
-			if (!analyzeExpression(arraylist->elements[i].expression)) return false;
-			if (!tryCast(&arraylist->elements[i].expression, firstType)) {
-				// Have to add element position for errors
-				m_errorHandler->reportError({ "Cannot insert element of type '" + arraylist->elements[i].expression->expressionType->typeName()
-					+ "' to array which holds elements of type '" + firstType->typeName() + "'", arraylist->elements[i].pos });
-				return false;
-			}
-		}
-
-		arraylist->expressionType = std::make_shared<ArrayType>(firstType);
-		arraylist->elementType = firstType;
-		return true;
-	}
-
-	bool SemanticAnalyzer::analyzeExpressionBinary(ExpressionPtr expression) {
-		std::shared_ptr<BinaryOperation> binary = static_pointer_cast<BinaryOperation>(expression);
-
-		if (!analyzeExpression(binary->left) || !analyzeExpression(binary->right)) return false;
-		if (!handleTypeConversion(&binary->left, &binary->right)) {
-			m_errorHandler->reportError({ "Cannot operate between '" + binary->right->expressionType->typeName()
-				+ "' and '" + binary->left->expressionType->typeName() + "' types", binary->operatorToken.position});
-			return false;
-		}
-
-		binary->expressionType = binary->left->expressionType;
-		return true;
-	}
-
-	bool SemanticAnalyzer::analyzeExpressionUnary(ExpressionPtr expression) {
-		std::shared_ptr<UnaryOperation> unary = static_pointer_cast<UnaryOperation>(expression);
-		if (!analyzeExpression(unary->expression)) return false;
-		unary->expressionType = unary->expression->expressionType;
-
-		return true;
-	}
-
-	bool SemanticAnalyzer::analyzeExpressionIdentifier(ExpressionPtr expression) {
-		std::shared_ptr<Identifier> identifier = static_pointer_cast<Identifier>(expression);
-
-		int32_t index = findNameLocal(identifier->idToken);
-		if (index > -1) {
-			identifier->expressionType = m_localStack[index][identifier->idToken.value].type;
-			identifier->idToken.value = m_localStack[index][identifier->idToken.value].name;
-			return true;
-		}
-
-		if (!findNameGlobal(identifier->idToken)) {
-			m_errorHandler->reportError({ "Undefined name '" + identifier->idToken.value + "'", identifier->idToken.position});
-			return false;
-		}
-		identifier->expressionType = m_globalTable[identifier->idToken.value].type;
-
-		return true;
-	}
-
-	bool SemanticAnalyzer::compareArgsToParams(const std::vector<TypePtr>& paramList, std::shared_ptr<Call> call) {
-		const ArgumentList& argList = call->argumentList;
-		if (paramList.size() != argList.size()) {
-			m_errorHandler->reportError(
-				{"Expected " + std::to_string(paramList.size()) + " arguments in '" + call->funcToken.value + "' call, but got " + std::to_string(argList.size())
-				, call->funcToken.position});
-			return false;
-		}
-		for (size_t i = 0; i < paramList.size(); i++) {
-			if (!tryCast(&argList[i]->expression, paramList[i])) {
-				m_errorHandler->reportError({ "Expected argument type '" + paramList[i]->typeName() 
-					+ "', got '" + argList[i]->expression->expressionType->typeName(), call->funcToken.position});
-				return false;
-			}
-		}
-		return true;
-	}
-
-	bool SemanticAnalyzer::analyzeExpressionCall(ExpressionPtr expression) { 
-		std::shared_ptr<Call> call = static_pointer_cast<Call>(expression);
-
-		TypePtr type;
-
-		std::shared_ptr<FunctionType> funcType;
-
-		int32_t index = findNameLocal(call->funcToken);
-		if (index > -1) {
-			SymbolEntry& symbol = m_localStack[index][call->funcToken.value];
-			funcType = static_pointer_cast<FunctionType>(symbol.type);
-			if (symbol.type->typeInfo() != TypeInfo::Function) {
-				m_errorHandler->reportError({ "Cannot call non-function names", call->funcToken.position});
-				return false;
-			}
-			call->funcToken.value = symbol.name;
-			call->expressionType = funcType->returnType;
-		}
-		else if (!findNameGlobal(call->funcToken)) {
-			m_errorHandler->reportError({ "Undefined name '" + call->funcToken.value + "'", call->funcToken.position });
-			return false;
-		}
-		else {
-			SymbolEntry& symbol = m_globalTable[call->funcToken.value];
-			funcType = static_pointer_cast<FunctionType>(symbol.type);
-			if (symbol.type->typeInfo() != TypeInfo::Function) {
-				m_errorHandler->reportError({ "Cannot call non-function names", call->funcToken.position });
-				return false;
-			}
-			call->expressionType = static_pointer_cast<FunctionType>(symbol.type)->returnType;
-		}
-
-		for (auto arg : call->argumentList)
-			if (!analyzeExpression(arg->expression)) return false;
-
-		return compareArgsToParams(funcType->parameterTypes, call);
-	}
-
-	bool SemanticAnalyzer::analyzeExpressionAssignment(ExpressionPtr expression) { 
-		std::shared_ptr<Assignment> assignment = static_pointer_cast<Assignment>(expression);
-
-		switch (assignment->left->getType()) {
-			case NodeType::Call:
-			case NodeType::Identifier:
-			case NodeType::MemberAccess:
-				break;
-			default:
-				m_errorHandler->reportError({ "Cannot assign to non-lvalues", assignment->operatorToken.position});
-				return false;
-		}
-
-		if (!analyzeExpression(assignment->left) || !analyzeExpression(assignment->right)) return false;
-		if (!tryCast(&assignment->right, assignment->left->expressionType)) {
-			m_errorHandler->reportError({ "Cannot assign expression of type '" + assignment->right->expressionType->typeName()
-				+ "' to variable of type '" + assignment->left->expressionType->typeName() + "'", assignment->operatorToken.position});
-			return false;
-		}
-
-		assignment->expressionType = assignment->left->expressionType;
-
-		return true;
-	}
-
-	bool SemanticAnalyzer::analyzeExpressionMemberAccess(ExpressionPtr expression) { 
-		std::shared_ptr<MemberAccess> access = static_pointer_cast<MemberAccess>(expression);
-		switch (access->left->getType()) {
-			case NodeType::Call:
-			case NodeType::Identifier:
-			case NodeType::MemberAccess:
-				break;
-			default:
-				m_errorHandler->reportError({ "Cannot access member of non-lvalues", access->operatorToken.position });
-				return false;
-		}
-
-		switch (access->right->getType()) {
-		case NodeType::Call:
-		case NodeType::Identifier:
-		case NodeType::MemberAccess:
-			break;
-		default:
-			m_errorHandler->reportError({ "Non-lvalues are not valid members of lvalues", access->operatorToken.position });
-			return false;
-		}
-		if (access->left->getType() == NodeType::Identifier && !analyzeExpression(access->left)) return false;
-		return true;
-	}
-
-	bool SemanticAnalyzer::handleTypeConversion(ExpressionPtr* a, ExpressionPtr* b) {
-		if(sameType((*a)->expressionType, (*b)->expressionType)) return true;
-		Size x = isNumType((*a)->expressionType);
-		Size y = isNumType((*b)->expressionType);
-		if((bool)x && (bool)y) {
-			bool xGreater = (int)x > (int)y;
-			cast(xGreater ? b : a, xGreater ? (*a)->expressionType : (*b)->expressionType);
-			return true;
-		}
-
-		return false;
-	}
-
-	bool SemanticAnalyzer::tryCast(ExpressionPtr* original, TypePtr target) {
-		if(sameType((*original)->expressionType, target)) return true;
-		Size x = isNumType((*original)->expressionType);
-		Size y = isNumType(target);
-		if((bool)x && (bool)y) {
-			cast(original, target);
-			return true;
-		}
-
-		return false;
-	}
-
-	void SemanticAnalyzer::cast(ExpressionPtr* original, TypePtr target) {
-		std::shared_ptr<CastExpression> castExpr = std::make_shared<CastExpression>(*original, target);
-		castExpr->expressionType = target;
-		*original = castExpr;
-	}
+bool SemanticAnalyzer::findNameGlobal(const Token& nameToken) {
+    return m_globalTable.find(nameToken.value) != m_globalTable.end();
 }
+
+int32_t SemanticAnalyzer::findNameLocal(const Token& nameToken) {
+    for (int32_t i = (int32_t)m_localStack.size() - 1; i >= 0; i--) {
+        if (m_localStack[i].find(nameToken.value) != m_localStack[i].end()) return i;
+    }
+    return -1;
+}
+
+std::string SemanticAnalyzer::createUnique(const std::string& name) {
+    return name + "." + std::to_string(m_uniqueIndex++);
+}
+
+void SemanticAnalyzer::pushScope() { m_localStack.push_back({}); }
+void SemanticAnalyzer::popScope() { m_localStack.pop_back(); }
+SymbolTable& SemanticAnalyzer::topScope() { return m_localStack.back(); }
+
+// -- Entry point -------------------------------------------------------------
+
+bool SemanticAnalyzer::analyze(ProgramFile* program) {
+    m_program = program;
+
+    // Reset per-run state so the analyzer is safe to reuse across files.
+    m_localStack.clear();
+    m_loopStack.clear();
+    m_currentFunction = nullptr;
+    m_uniqueIndex = 0;
+    m_loopIndex = 0;
+    m_ok = true;
+    m_saveMode = false;
+
+    for (auto& definition : m_program->definitions) {
+        analyzeDef(definition);
+        if (!m_ok) return false;
+    }
+
+    pushScope();
+    for (auto& statement : m_program->statements) {
+        analyze(statement);
+        if (!m_ok) return false;
+    }
+    popScope();
+
+    return m_ok;
+}
+
+// -- Dispatch helpers --------------------------------------------------------
+
+void SemanticAnalyzer::analyze(ExpressionPtr& e) {
+    if (!m_ok || !e) return;
+    e->accept(*this);
+}
+
+void SemanticAnalyzer::analyze(StatementPtr& s) {
+    if (!m_ok || !s) return;
+    s->accept(*this);
+}
+
+void SemanticAnalyzer::analyzeDef(DefinitionPtr& d) {
+    if (!m_ok || !d) return;
+    // Definition derives from Statement; accept(StatementVisitor&) is the
+    // only dispatch surface, and StatementVisitor declares visit() methods
+    // for every concrete Definition kind.
+    d->accept(*this);
+}
+
+// -- Expressions: leaves -----------------------------------------------------
+
+void SemanticAnalyzer::visit(IntegerLiteral& node) {
+    node.expressionType = std::make_shared<FundamentalType>(BasicType::I32);
+}
+
+void SemanticAnalyzer::visit(FloatLiteral& node) {
+    node.expressionType = std::make_shared<FundamentalType>(BasicType::F32);
+}
+
+void SemanticAnalyzer::visit(StringLiteral& node) {
+    node.expressionType = std::make_shared<FundamentalType>(BasicType::String);
+}
+
+void SemanticAnalyzer::visit(CharacterLiteral& node) {
+    node.expressionType = std::make_shared<FundamentalType>(BasicType::Character);
+}
+
+// -- Expressions: composites -------------------------------------------------
+
+void SemanticAnalyzer::visit(ArrayList& node) {
+    TypePtr firstType;
+
+    if (!node.elements.empty()) {
+        analyze(node.elements[0].expression);
+        if (!m_ok) return;
+        firstType = node.elements[0].expression->expressionType;
+    }
+
+    for (size_t i = 1; i < node.elements.size(); i++) {
+        analyze(node.elements[i].expression);
+        if (!m_ok) return;
+        if (!tryCast(&node.elements[i].expression, firstType)) {
+            m_errorHandler->reportError(
+                {"Cannot insert element of type '"
+                     + node.elements[i].expression->expressionType->typeName()
+                     + "' to array which holds elements of type '" + firstType->typeName() + "'",
+                 node.elements[i].pos});
+            m_ok = false;
+            return;
+        }
+    }
+
+    node.expressionType = std::make_shared<ArrayType>(firstType);
+    node.elementType = firstType;
+}
+
+void SemanticAnalyzer::visit(BinaryOperation& node) {
+    analyze(node.left);
+    analyze(node.right);
+    if (!m_ok) return;
+
+    if (!handleTypeConversion(&node.left, &node.right)) {
+        m_errorHandler->reportError(
+            {"Cannot operate between '" + node.right->expressionType->typeName()
+                 + "' and '" + node.left->expressionType->typeName() + "' types",
+             node.operatorToken.position});
+        m_ok = false;
+        return;
+    }
+
+    node.expressionType = node.left->expressionType;
+}
+
+void SemanticAnalyzer::visit(UnaryOperation& node) {
+    analyze(node.expression);
+    if (!m_ok) return;
+    node.expressionType = node.expression->expressionType;
+}
+
+void SemanticAnalyzer::visit(Identifier& node) {
+    int32_t index = findNameLocal(node.idToken);
+    if (index > -1) {
+        node.expressionType = m_localStack[index][node.idToken.value].type;
+        node.idToken.value = m_localStack[index][node.idToken.value].name;
+        return;
+    }
+
+    if (!findNameGlobal(node.idToken)) {
+        m_errorHandler->reportError(
+            {"Undefined name '" + node.idToken.value + "'", node.idToken.position});
+        m_ok = false;
+        return;
+    }
+    node.expressionType = m_globalTable[node.idToken.value].type;
+}
+
+bool SemanticAnalyzer::compareArgsToParams(const std::vector<TypePtr>& paramList,
+                                            std::shared_ptr<Call> call) {
+    const ArgumentList& argList = call->argumentList;
+    if (paramList.size() != argList.size()) {
+        m_errorHandler->reportError(
+            {"Expected " + std::to_string(paramList.size()) + " arguments in '"
+                 + call->funcToken.value + "' call, but got " + std::to_string(argList.size()),
+             call->funcToken.position});
+        return false;
+    }
+    for (size_t i = 0; i < paramList.size(); i++) {
+        if (!tryCast(&argList[i]->expression, paramList[i])) {
+            m_errorHandler->reportError(
+                {"Expected argument type '" + paramList[i]->typeName() + "', got '"
+                     + argList[i]->expression->expressionType->typeName() + "'",
+                 call->funcToken.position});
+            return false;
+        }
+    }
+    return true;
+}
+
+void SemanticAnalyzer::visit(Call& node) {
+    std::shared_ptr<FunctionType> funcType;
+
+    int32_t index = findNameLocal(node.funcToken);
+    if (index > -1) {
+        SymbolEntry& symbol = m_localStack[index][node.funcToken.value];
+        if (symbol.type->typeInfo() != TypeInfo::Function) {
+            m_errorHandler->reportError(
+                {"Cannot call non-function names", node.funcToken.position});
+            m_ok = false;
+            return;
+        }
+        funcType = std::static_pointer_cast<FunctionType>(symbol.type);
+        node.funcToken.value = symbol.name;
+        node.expressionType = funcType->returnType;
+    } else if (!findNameGlobal(node.funcToken)) {
+        m_errorHandler->reportError(
+            {"Undefined name '" + node.funcToken.value + "'", node.funcToken.position});
+        m_ok = false;
+        return;
+    } else {
+        SymbolEntry& symbol = m_globalTable[node.funcToken.value];
+        if (symbol.type->typeInfo() != TypeInfo::Function) {
+            m_errorHandler->reportError(
+                {"Cannot call non-function names", node.funcToken.position});
+            m_ok = false;
+            return;
+        }
+        funcType = std::static_pointer_cast<FunctionType>(symbol.type);
+        node.expressionType = funcType->returnType;
+    }
+
+    for (auto arg : node.argumentList) {
+        analyze(arg->expression);
+        if (!m_ok) return;
+    }
+
+    // compareArgsToParams owns its own error reporting; just propagate the flag.
+    // Build a shared_ptr alias for the existing helper signature.
+    auto callPtr = std::shared_ptr<Call>(std::shared_ptr<Call>{}, &node);
+    if (!compareArgsToParams(funcType->parameterTypes, callPtr)) {
+        m_ok = false;
+    }
+}
+
+void SemanticAnalyzer::visit(Assignment& node) {
+    // Only lvalues are assignable.
+    switch (node.left->getType()) {
+        case NodeType::Call:
+        case NodeType::Identifier:
+        case NodeType::MemberAccess:
+            break;
+        default:
+            m_errorHandler->reportError(
+                {"Cannot assign to non-lvalues", node.operatorToken.position});
+            m_ok = false;
+            return;
+    }
+
+    analyze(node.left);
+    analyze(node.right);
+    if (!m_ok) return;
+
+    if (!tryCast(&node.right, node.left->expressionType)) {
+        m_errorHandler->reportError(
+            {"Cannot assign expression of type '" + node.right->expressionType->typeName()
+                 + "' to variable of type '" + node.left->expressionType->typeName() + "'",
+             node.operatorToken.position});
+        m_ok = false;
+        return;
+    }
+
+    node.expressionType = node.left->expressionType;
+}
+
+void SemanticAnalyzer::visit(MemberAccess& node) {
+    switch (node.left->getType()) {
+        case NodeType::Call:
+        case NodeType::Identifier:
+        case NodeType::MemberAccess:
+            break;
+        default:
+            m_errorHandler->reportError(
+                {"Cannot access member of non-lvalues", node.operatorToken.position});
+            m_ok = false;
+            return;
+    }
+    switch (node.right->getType()) {
+        case NodeType::Call:
+        case NodeType::Identifier:
+        case NodeType::MemberAccess:
+            break;
+        default:
+            m_errorHandler->reportError(
+                {"Non-lvalues are not valid members of lvalues", node.operatorToken.position});
+            m_ok = false;
+            return;
+    }
+    if (node.left->getType() == NodeType::Identifier) {
+        analyze(node.left);
+    }
+}
+
+void SemanticAnalyzer::visit(CastExpression& node) {
+    // CastExpression is a marker the analyzer inserts itself; nothing to do
+    // beyond ensuring the inner expression is analyzed.
+    analyze(node.expr);
+}
+
+void SemanticAnalyzer::visit(DereferenceExpression& node) {
+    analyze(node.expr);
+    if (!m_ok) return;
+
+    if (node.expr->expressionType->typeInfo() != TypeInfo::Pointer) {
+        m_errorHandler->reportError(
+            {"Expected pointer type for dereferencing, got '"
+                 + node.expr->expressionType->typeName() + "'",
+             {}});
+        m_ok = false;
+        return;
+    }
+    node.expressionType = std::static_pointer_cast<PointerType>(node.expr->expressionType)
+                              ->pointingType;
+}
+
+void SemanticAnalyzer::visit(AddressOfExpression& node) {
+    analyze(node.expr);
+    if (!m_ok) return;
+
+    node.expressionType = std::make_shared<PointerType>(node.expr->expressionType);
+    if (node.expr->getType() != NodeType::Identifier
+        && node.expr->getType() != NodeType::MemberAccess) {
+        m_errorHandler->reportError({"Cannot get address of a non-lvalue", {}});
+        m_ok = false;
+    }
+}
+
+// -- Statements -------------------------------------------------------------
+
+void SemanticAnalyzer::visit(NullStatement& node) { (void)node; }
+
+void SemanticAnalyzer::visit(CompoundStatement& node) {
+    pushScope();
+    for (auto& s : node.statements) {
+        analyze(s);
+        if (!m_ok) {
+            popScope();
+            return;
+        }
+    }
+    popScope();
+}
+
+void SemanticAnalyzer::visit(IfStatement& node) {
+    analyze(node.condition);
+    analyze(node.ifBody);
+    if (node.elseBody) analyze(node.elseBody);
+}
+
+void SemanticAnalyzer::visit(LoopStatement& node) {
+    m_loopStack.push_back(m_loopIndex++);
+    analyze(node.loopBody);
+    m_loopStack.pop_back();
+}
+
+void SemanticAnalyzer::visit(WhileStatement& node) {
+    m_loopStack.push_back(m_loopIndex++);
+    analyze(node.condition);
+    analyze(node.loopBody);
+    m_loopStack.pop_back();
+}
+
+void SemanticAnalyzer::visit(BreakStatement& node) {
+    if (m_loopStack.empty()) {
+        m_errorHandler->reportError(
+            {"Cannot use break outside of a loop", node.token.position});
+        m_ok = false;
+        return;
+    }
+    node.loopIndex = m_loopStack.back();
+}
+
+void SemanticAnalyzer::visit(ContinueStatement& node) {
+    if (m_loopStack.empty()) {
+        m_errorHandler->reportError(
+            {"Cannot use continue outside of a loop", node.token.position});
+        m_ok = false;
+        return;
+    }
+    node.loopIndex = m_loopStack.back();
+}
+
+void SemanticAnalyzer::visit(ExpressionStatement& node) {
+    switch (node.expression->getType()) {
+        case NodeType::Call:
+        case NodeType::MemberAccess:
+        case NodeType::Assignment:
+            break;
+        default:
+            m_errorHandler->reportWarning({"Unused expression", node.expressionPos});
+    }
+    analyze(node.expression);
+}
+
+void SemanticAnalyzer::visit(ReturnStatement& node) {
+    if (!m_currentFunction) {
+        m_errorHandler->reportError(
+            {"Cannot use return outside of a function body", node.token.position});
+        m_ok = false;
+        return;
+    }
+
+    analyze(node.expression);
+    if (!m_ok) return;
+
+    if (!tryCast(&node.expression, m_currentFunction->returnType)) {
+        m_errorHandler->reportError(
+            {"Cannot return type '" + node.expression->expressionType->typeName()
+                 + "' from a function which returns type '"
+                 + m_currentFunction->returnType->typeName() + "'",
+             node.token.position});
+        m_ok = false;
+    }
+}
+
+// -- Definitions -------------------------------------------------------------
+
+bool SemanticAnalyzer::analyzeParameters(const ParameterList& paramList) {
+    std::vector<std::string> seen;
+    for (const auto& parameter : paramList) {
+        if (findNameGlobal(parameter->nameToken))
+            m_errorHandler->reportWarning(
+                {"Parameter '" + parameter->nameToken.value + "' shadows a global name",
+                 parameter->nameToken.position});
+        if (std::find(seen.begin(), seen.end(), parameter->nameToken.value) != seen.end()) {
+            m_errorHandler->reportError(
+                {"Parameter '" + parameter->nameToken.value + "' is already defined",
+                 parameter->nameToken.position});
+            return false;
+        }
+        seen.push_back(parameter->nameToken.value);
+        std::string newName = createUnique(parameter->nameToken.value);
+        topScope()[parameter->nameToken.value] = {newName, parameter->type};
+        parameter->nameToken.value = newName;
+    }
+    return true;
+}
+
+void SemanticAnalyzer::visit(FunctionDefinition& node) {
+    pushScope();
+
+    if (findNameGlobal(node.nameToken)) {
+        m_errorHandler->reportError(
+            {"Function '" + node.nameToken.value + "' is already defined",
+             node.nameToken.position});
+        m_ok = false;
+        popScope();
+        return;
+    }
+
+    if (!analyzeParameters(node.parameterList)) {
+        m_ok = false;
+        popScope();
+        return;
+    }
+
+    std::vector<TypePtr> parameterTypes;
+    parameterTypes.reserve(node.parameterList.size());
+    for (auto& param : node.parameterList) parameterTypes.push_back(param->type);
+
+    m_currentFunction = std::make_shared<FunctionType>(node.returnType, parameterTypes);
+    m_globalTable[node.nameToken.value] =
+        SymbolEntry{node.nameToken.value, m_currentFunction};
+
+    if (m_saveMode) {
+        popScope();
+        return;
+    }
+
+    analyze(node.functionBody);
+    m_currentFunction = nullptr;
+    popScope();
+}
+
+void SemanticAnalyzer::visit(VariableDefinition& node) {
+    if (node.isGlobal) {
+        if (findNameGlobal(node.nameToken)) {
+            m_errorHandler->reportError(
+                {"Variable '" + node.nameToken.value + "' is already defined globally",
+                 node.nameToken.position});
+            m_ok = false;
+            return;
+        }
+        m_globalTable[node.nameToken.value] =
+            SymbolEntry{node.nameToken.value, node.variableType};
+    } else {
+        if (findNameLocal(node.nameToken) > -1) {
+            m_errorHandler->reportError(
+                {"Variable '" + node.nameToken.value + "' is already defined in local scope",
+                 node.nameToken.position});
+            m_ok = false;
+            return;
+        }
+        topScope()[node.nameToken.value] =
+            SymbolEntry{node.nameToken.value, node.variableType};
+    }
+
+    if (node.initializer) {
+        analyze(node.initializer);
+        if (!m_ok) return;
+
+        if (node.variableType->typeInfo() == TypeInfo::Fundamental
+            && std::static_pointer_cast<FundamentalType>(node.variableType)->type
+                   == BasicType::None) {
+            node.variableType = node.initializer->expressionType;
+        } else if (!tryCast(&node.initializer, node.variableType)) {
+            m_errorHandler->reportError(
+                {"Initializer Expression does not match the variable's type",
+                 node.nameToken.position});
+            m_ok = false;
+        }
+    }
+}
+
+void SemanticAnalyzer::visit(ClassDefinition& node) {
+    m_userDefinedTypes.push_back(node.className);
+}
+
+void SemanticAnalyzer::visit(DecoratedDefinition& node) {
+    if (node.decorator == Decorator::External) {
+        analyzeDef(node.definition);
+    }
+}
+
+// -- Type conversion helpers (unchanged) ------------------------------------
+
+bool SemanticAnalyzer::handleTypeConversion(ExpressionPtr* a, ExpressionPtr* b) {
+    if (sameType((*a)->expressionType, (*b)->expressionType)) return true;
+    Size x = isNumType((*a)->expressionType);
+    Size y = isNumType((*b)->expressionType);
+    if ((bool)x && (bool)y) {
+        bool xGreater = (int)x > (int)y;
+        cast(xGreater ? b : a, xGreater ? (*a)->expressionType : (*b)->expressionType);
+        return true;
+    }
+    return false;
+}
+
+bool SemanticAnalyzer::tryCast(ExpressionPtr* original, TypePtr target) {
+    if (sameType((*original)->expressionType, target)) return true;
+    Size x = isNumType((*original)->expressionType);
+    Size y = isNumType(target);
+    if ((bool)x && (bool)y) {
+        cast(original, target);
+        return true;
+    }
+    return false;
+}
+
+void SemanticAnalyzer::cast(ExpressionPtr* original, TypePtr target) {
+    auto castExpr = std::make_shared<CastExpression>(*original, target);
+    castExpr->expressionType = target;
+    *original = castExpr;
+}
+
+} // namespace Fractal
