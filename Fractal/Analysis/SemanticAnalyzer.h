@@ -72,8 +72,7 @@ namespace Fractal {
         // Scope / symbol-table helpers (unchanged from the enum-dispatch version).
         bool findNameGlobal(const Token& nameToken);
         int32_t findNameLocal(const Token& nameToken);
-        bool compareArgsToParams(const std::vector<TypePtr>& paramList,
-                                  std::shared_ptr<Call> call);
+        bool compareArgsToParams(const std::vector<TypePtr>& paramList, Call& call);
 
         void pushScope();
         void popScope();

@@ -167,13 +167,13 @@ void SemanticAnalyzer::visit(Identifier& node) {
 }
 
 bool SemanticAnalyzer::compareArgsToParams(const std::vector<TypePtr>& paramList,
-                                            std::shared_ptr<Call> call) {
-    const ArgumentList& argList = call->argumentList;
+                                            Call& call) {
+    ArgumentList& argList = call.argumentList;
     if (paramList.size() != argList.size()) {
         m_errorHandler->reportError(
             {"Expected " + std::to_string(paramList.size()) + " arguments in '"
-                 + call->funcToken.value + "' call, but got " + std::to_string(argList.size()),
-             call->funcToken.position});
+                 + call.funcToken.value + "' call, but got " + std::to_string(argList.size()),
+             call.funcToken.position});
         return false;
     }
     for (size_t i = 0; i < paramList.size(); i++) {
@@ -181,7 +181,7 @@ bool SemanticAnalyzer::compareArgsToParams(const std::vector<TypePtr>& paramList
             m_errorHandler->reportError(
                 {"Expected argument type '" + paramList[i]->typeName() + "', got '"
                      + argList[i]->expression->expressionType->typeName() + "'",
-                 call->funcToken.position});
+                 call.funcToken.position});
             return false;
         }
     }
@@ -220,15 +220,12 @@ void SemanticAnalyzer::visit(Call& node) {
         node.expressionType = funcType->returnType;
     }
 
-    for (auto arg : node.argumentList) {
+    for (auto& arg : node.argumentList) {
         analyze(arg->expression);
         if (!m_ok) return;
     }
 
-    // compareArgsToParams owns its own error reporting; just propagate the flag.
-    // Build a shared_ptr alias for the existing helper signature.
-    auto callPtr = std::shared_ptr<Call>(std::shared_ptr<Call>{}, &node);
-    if (!compareArgsToParams(funcType->parameterTypes, callPtr)) {
+    if (!compareArgsToParams(funcType->parameterTypes, node)) {
         m_ok = false;
     }
 }
@@ -548,9 +545,9 @@ bool SemanticAnalyzer::tryCast(ExpressionPtr* original, TypePtr target) {
 }
 
 void SemanticAnalyzer::cast(ExpressionPtr* original, TypePtr target) {
-    auto castExpr = std::make_shared<CastExpression>(*original, target);
+    auto castExpr = std::make_unique<CastExpression>(std::move(*original), target);
     castExpr->expressionType = target;
-    *original = castExpr;
+    *original = std::move(castExpr);
 }
 
 } // namespace Fractal

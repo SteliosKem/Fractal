@@ -65,8 +65,10 @@ public:
 
 private:
     // Visit `node` and return the OperandPtr it produced. Saves and restores
-    // m_result so nested expression evaluations compose correctly.
-    OperandPtr generate(ExpressionPtr expression);
+    // m_result so nested expression evaluations compose correctly. Takes a
+    // raw pointer so callers can pass `expr.get()` without moving the
+    // unique_ptr; passing nullptr is allowed.
+    OperandPtr generate(Expression* expression);
 
     // Emit a single instruction into the active target list.
     void emit(InstructionPtr instr) { m_currentList->push_back(instr); }
@@ -123,7 +125,7 @@ private:
     };
 
     InstructionList m_instructions{};
-    ProgramFile m_program{};
+    ProgramFile* m_program{ nullptr };  // non-owning, borrowed from caller
     int64_t m_currentStackIndex{};
     std::unordered_map<std::string, OperandPtr> m_localVarMap{};
     uint64_t m_currentComparisonIndex{};

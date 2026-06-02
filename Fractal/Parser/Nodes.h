@@ -86,12 +86,15 @@ namespace Fractal {
 		TYPE(NodeType::Definition)
 	};
 
-	using ExpressionPtr = std::shared_ptr<Expression>;
-	using StatementPtr = std::shared_ptr<Statement>;
-	using DefinitionPtr = std::shared_ptr<Definition>;
+	// AST nodes are uniquely owned: a parent expression owns its children, a
+	// CompoundStatement owns its statements, etc. unique_ptr makes that
+	// ownership explicit and removes the atomic refcount overhead of shared_ptr.
+	using ExpressionPtr = std::unique_ptr<Expression>;
+	using StatementPtr = std::unique_ptr<Statement>;
+	using DefinitionPtr = std::unique_ptr<Definition>;
 
-	using StatementList = std::vector<std::shared_ptr<Statement>>;
-	using DefinitionList = std::vector<std::shared_ptr<Definition>>;
+	using StatementList = std::vector<StatementPtr>;
+	using DefinitionList = std::vector<DefinitionPtr>;
 
 	//
 	// Expressions
@@ -150,7 +153,7 @@ namespace Fractal {
 
 	class ArrayList : public Expression {
 	public:
-		ArrayList(const std::vector<ArrayElement>& elements) : elements{ elements } {}
+		ArrayList(std::vector<ArrayElement> elements) : elements{ std::move(elements) } {}
 		EXPR_ACCEPT()
 		void print() const override {
 			std::cout << "Array [";
@@ -168,7 +171,8 @@ namespace Fractal {
 
 	class UnaryOperation : public Expression {
 	public:
-		UnaryOperation(const Token& operatorToken, ExpressionPtr expression) : operatorToken{ operatorToken }, expression{ expression } {}
+		UnaryOperation(const Token& operatorToken, ExpressionPtr expression)
+			: expression{ std::move(expression) }, operatorToken{ operatorToken } {}
 		EXPR_ACCEPT()
 
 		void print() const override {
@@ -186,7 +190,7 @@ namespace Fractal {
 	class BinaryOperation : public Expression {
 	public:
 		BinaryOperation(ExpressionPtr left, const Token& operatorToken, ExpressionPtr right)
-			: left{ left }, operatorToken{operatorToken}, right{ right } {}
+			: left{ std::move(left) }, right{ std::move(right) }, operatorToken{ operatorToken } {}
 		EXPR_ACCEPT()
 
 		void print() const override {
@@ -221,7 +225,7 @@ namespace Fractal {
 	class Assignment : public Expression {
 	public:
 		Assignment(ExpressionPtr left, const Token& operatorToken, ExpressionPtr right)
-			: left{ left }, operatorToken{ operatorToken }, right{ right } {}
+			: left{ std::move(left) }, right{ std::move(right) }, operatorToken{ operatorToken } {}
 		EXPR_ACCEPT()
 
 		void print() const override {
@@ -242,7 +246,7 @@ namespace Fractal {
 	class MemberAccess : public Expression {
 	public:
 		MemberAccess(ExpressionPtr left, const Token& operatorToken, ExpressionPtr right)
-			: left{ left }, operatorToken{ operatorToken }, right{ right } {}
+			: left{ std::move(left) }, right{ std::move(right) }, operatorToken{ operatorToken } {}
 		EXPR_ACCEPT()
 
 		void print() const override {
@@ -262,7 +266,7 @@ namespace Fractal {
 
 	class CastExpression : public Expression {
 	public:
-		CastExpression(ExpressionPtr expr, TypePtr target) : expr{ expr }, target{ target } {}
+		CastExpression(ExpressionPtr expr, TypePtr target) : expr{ std::move(expr) }, target{ target } {}
 		EXPR_ACCEPT()
 		void print() const override {
 			std::cout << "Cast ";
@@ -277,7 +281,7 @@ namespace Fractal {
 
 	class DereferenceExpression : public Expression {
 	public:
-		DereferenceExpression(ExpressionPtr expression) : expr{ expression } {}
+		DereferenceExpression(ExpressionPtr expression) : expr{ std::move(expression) } {}
 		EXPR_ACCEPT()
 		void print() const override {
 			std::cout << "Dereference ";
@@ -290,7 +294,7 @@ namespace Fractal {
 
 	class AddressOfExpression : public Expression {
 	public:
-		AddressOfExpression(ExpressionPtr expression) : expr{ expression } {}
+		AddressOfExpression(ExpressionPtr expression) : expr{ std::move(expression) } {}
 		EXPR_ACCEPT()
 		void print() const override {
 			std::cout << "Address of ";
@@ -305,7 +309,8 @@ namespace Fractal {
 
 	class Argument {
 	public:
-		Argument(const std::string& name, ExpressionPtr expression) : name{ name }, expression{ expression } {}
+		Argument(const std::string& name, ExpressionPtr expression)
+			: name{ name }, expression{ std::move(expression) } {}
 		void print() const {
 			std::cout << "arg " << name;
 			if (expression) expression->print();
@@ -315,13 +320,14 @@ namespace Fractal {
 		ExpressionPtr expression;
 	};
 
-	using ArgumentPtr = std::shared_ptr<Argument>;
+	using ArgumentPtr = std::unique_ptr<Argument>;
 	using ArgumentList = std::vector<ArgumentPtr>;
 
 
 	class Call : public Expression {
 	public:
-		Call(const Token& funcToken, ArgumentList& argumentList) : funcToken{ funcToken }, argumentList{ argumentList } {}
+		Call(const Token& funcToken, ArgumentList argumentList)
+			: funcToken{ funcToken }, argumentList{ std::move(argumentList) } {}
 		EXPR_ACCEPT()
 
 		void print() const override {
@@ -355,7 +361,7 @@ namespace Fractal {
 
 	class CompoundStatement : public Statement {
 	public:
-		CompoundStatement(StatementList& statementList) : statements{ statementList } {}
+		CompoundStatement(StatementList statementList) : statements{ std::move(statementList) } {}
 		STMT_ACCEPT()
 		void print(uint8_t indent = 0) const override {
 			(void)indent;
@@ -372,7 +378,7 @@ namespace Fractal {
 	class IfStatement : public Statement {
 	public:
 		IfStatement(ExpressionPtr condition, StatementPtr ifBody, StatementPtr elseBody)
-			: condition{ condition }, ifBody{ ifBody }, elseBody{ elseBody } {}
+			: condition{ std::move(condition) }, ifBody{ std::move(ifBody) }, elseBody{ std::move(elseBody) } {}
 		STMT_ACCEPT()
 		void print(uint8_t indent = 0) const override {
 			(void)indent;
@@ -394,7 +400,7 @@ namespace Fractal {
 
 	class LoopStatement : public Statement {
 	public:
-		LoopStatement(StatementPtr loopBody) : loopBody{ loopBody } {}
+		LoopStatement(StatementPtr loopBody) : loopBody{ std::move(loopBody) } {}
 		STMT_ACCEPT()
 		void print(uint8_t indent = 0) const override {
 			(void)indent;
@@ -408,7 +414,8 @@ namespace Fractal {
 
 	class WhileStatement : public Statement {
 	public:
-		WhileStatement(ExpressionPtr condition, StatementPtr loopBody) : condition{ condition }, loopBody{ loopBody } {}
+		WhileStatement(ExpressionPtr condition, StatementPtr loopBody)
+			: condition{ std::move(condition) }, loopBody{ std::move(loopBody) } {}
 		STMT_ACCEPT()
 		void print(uint8_t indent = 0) const override {
 			(void)indent;
@@ -454,7 +461,7 @@ namespace Fractal {
 	class ExpressionStatement : public Statement {
 	public:
 		ExpressionStatement(ExpressionPtr expression, const Position& expressionPos)
-			: expression{ expression }, expressionPos{ expressionPos } {}
+			: expression{ std::move(expression) }, expressionPos{ expressionPos } {}
 		STMT_ACCEPT()
 		void print(uint8_t indent = 0) const override {
 			(void)indent;
@@ -470,7 +477,8 @@ namespace Fractal {
 
 	class ReturnStatement : public Statement {
 	public:
-		ReturnStatement(ExpressionPtr expression, const Token& token) : expression{ expression }, token{ token } {}
+		ReturnStatement(ExpressionPtr expression, const Token& token)
+			: expression{ std::move(expression) }, token{ token } {}
 		STMT_ACCEPT()
 		void print(uint8_t indent = 0) const override {
 			(void)indent;
@@ -490,7 +498,7 @@ namespace Fractal {
 	class Parameter {
 	public:
 		Parameter(const Token& nameToken, TypePtr type, ExpressionPtr defaultValue)
-			: nameToken{ nameToken }, type{ type }, defaultValue { defaultValue } {}
+			: nameToken{ nameToken }, type{ type }, defaultValue{ std::move(defaultValue) } {}
 		void print() const {
 			std::cout << "parameter " << nameToken.value;
 			if (defaultValue) defaultValue->print();
@@ -501,7 +509,7 @@ namespace Fractal {
 		ExpressionPtr defaultValue;
 	};
 
-	using ParameterPtr = std::shared_ptr<Parameter>;
+	using ParameterPtr = std::unique_ptr<Parameter>;
 	using ParameterList = std::vector<ParameterPtr>;
 
 	//
@@ -510,8 +518,9 @@ namespace Fractal {
 
 	class FunctionDefinition : public Definition {
 	public:
-		FunctionDefinition(const Token& nameToken, ParameterList& parameterList, TypePtr returnType, StatementPtr functionBody)
-			: functionBody{ functionBody }, parameterList{ parameterList }, returnType{ returnType }, nameToken{ nameToken } {}
+		FunctionDefinition(const Token& nameToken, ParameterList parameterList, TypePtr returnType, StatementPtr functionBody)
+			: nameToken{ nameToken }, returnType{ returnType },
+			  parameterList{ std::move(parameterList) }, functionBody{ std::move(functionBody) } {}
 		STMT_ACCEPT()
 		void print(uint8_t indent = 0) const override {
 			std::cout << "=>  function '" << nameToken.value << "'(";
@@ -534,7 +543,8 @@ namespace Fractal {
 	class VariableDefinition : public Definition {
 	public:
 		VariableDefinition(const Token& nameToken, TypePtr variableType, ExpressionPtr initializer, bool isConst, bool isGlobal)
-			: initializer{ initializer }, variableType{ variableType }, nameToken{ nameToken }, isConst{ isConst }, isGlobal{ isGlobal } {}
+			: nameToken{ nameToken }, variableType{ variableType },
+			  initializer{ std::move(initializer) }, isConst{ isConst }, isGlobal{ isGlobal } {}
 		STMT_ACCEPT()
 		void print(uint8_t indent = 0) const override {
 			std::cout << "=>  " << (isGlobal ? "global " : "local ") << (isConst ? "const " : "") << "variable '" << nameToken.value << "': ";
@@ -561,7 +571,8 @@ namespace Fractal {
 
 	class ClassDefinition : public Definition {
 	public:
-		ClassDefinition(const std::string& className, MemberList& definitions) : definitions{ definitions }, className{ className }{}
+		ClassDefinition(const std::string& className, MemberList definitions)
+			: className{ className }, definitions{ std::move(definitions) } {}
 		STMT_ACCEPT()
 		void print(uint8_t indent = 0) const override {
 			std::cout << "=>  " << "Class '" << className << "': {\n";
@@ -579,7 +590,8 @@ namespace Fractal {
 
 	class DecoratedDefinition : public Definition {
 	public:
-		DecoratedDefinition(Decorator decorator, DefinitionPtr definition) : decorator{ decorator }, definition{ definition } {}
+		DecoratedDefinition(Decorator decorator, DefinitionPtr definition)
+			: decorator{ decorator }, definition{ std::move(definition) } {}
 		STMT_ACCEPT()
 		void print(uint8_t indent = 0) const override {
 			std::cout << "Decorated ";

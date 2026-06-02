@@ -47,7 +47,7 @@ std::shared_ptr<AnalyzeResult> analyze(const std::string &source,
         return r;
     }
 
-    r->program = parser.program();
+    r->program = std::move(parser.program());
     Fractal::SemanticAnalyzer sema(&r->eh);
     r->analyzeOk = sema.analyze(&r->program);
 

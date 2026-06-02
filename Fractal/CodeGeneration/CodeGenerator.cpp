@@ -50,12 +50,14 @@ static ComparisonType getComparisonType(TokenType tokType) {
 // -- Entry point ------------------------------------------------------------
 
 const InstructionList& CodeGenerator::generate(const ProgramFile& program, Platform platform) {
-    m_program = program;
+    // m_program is borrowed for the duration of this call only; the AST is
+    // owned by the caller via unique_ptr, so we keep a non-owning pointer.
+    m_program = const_cast<ProgramFile*>(&program);
     m_instructions = {};
     m_platform = platform;
     m_currentList = &m_instructions;
 
-    for (auto& definition : m_program.definitions) {
+    for (auto& definition : program.definitions) {
         definition->accept(*this);
     }
 
@@ -67,7 +69,7 @@ const InstructionList& CodeGenerator::generate(const ProgramFile& program, Platf
 
 // -- Generate helper --------------------------------------------------------
 
-OperandPtr CodeGenerator::generate(ExpressionPtr expression) {
+OperandPtr CodeGenerator::generate(Expression* expression) {
     if (!expression) return nullptr;
     OperandPtr saved = std::move(m_result);
     m_result.reset();
@@ -131,7 +133,7 @@ void CodeGenerator::visit(VariableDefinition& node) {
     m_localVarMap[node.nameToken.value] = varPtr;
 
     if (node.initializer) {
-        OperandPtr init = generate(node.initializer);
+        OperandPtr init = generate(node.initializer.get());
         if (init) emit(move(init, varPtr));
     }
 }
@@ -156,11 +158,11 @@ void CodeGenerator::visit(CompoundStatement& node) {
 }
 
 void CodeGenerator::visit(ExpressionStatement& node) {
-    generate(node.expression);
+    generate(node.expression.get());
 }
 
 void CodeGenerator::visit(ReturnStatement& node) {
-    OperandPtr result = generate(node.expression);
+    OperandPtr result = generate(node.expression.get());
     if (result) emit(move(result, reg(Register::AX)));
     emit(std::make_shared<ReturnInstruction>());
 }
@@ -172,7 +174,7 @@ void CodeGenerator::visit(IfStatement& node) {
 
     if (!node.elseBody) falseLabel = endLabel;
 
-    OperandPtr cond = generate(node.condition);
+    OperandPtr cond = generate(node.condition.get());
     emit(cmp(cond, intConst(0)));
     emit(jmp(falseLabel, ComparisonType::Equal));
     if (node.ifBody) node.ifBody->accept(*this);
@@ -208,7 +210,7 @@ void CodeGenerator::visit(WhileStatement& node) {
     m_loopStack.push_back({startLabel, exitLabel});
 
     emit(label(startLabel));
-    OperandPtr cond = generate(node.condition);
+    OperandPtr cond = generate(node.condition.get());
     emit(cmp(cond, intConst(0)));
     emit(jmp(exitLabel, ComparisonType::Equal));
     if (node.loopBody) node.loopBody->accept(*this);
@@ -264,7 +266,7 @@ void CodeGenerator::visit(Identifier& node) {
 
 void CodeGenerator::visit(UnaryOperation& node) {
     auto destination = std::make_shared<TempOperand>(allocateStack(Size::DWord), Size::DWord);
-    OperandPtr inner = generate(node.expression);
+    OperandPtr inner = generate(node.expression.get());
     if (inner) emit(move(inner, destination));
 
     switch (node.operatorToken.type) {
@@ -311,13 +313,13 @@ void CodeGenerator::visit(BinaryOperation& node) {
 
 OperandPtr CodeGenerator::arithmetic(BinaryOperation& node) {
     auto destination = std::make_shared<TempOperand>(allocateStack(Size::DWord), Size::DWord);
-    OperandPtr leftOp = generate(node.left);
+    OperandPtr leftOp = generate(node.left.get());
     if (leftOp) emit(move(leftOp, destination));
 
     switch (node.operatorToken.type) {
-        case PLUS:  emit(add(destination, generate(node.right))); break;
-        case MINUS: emit(sub(destination, generate(node.right))); break;
-        case STAR:  emit(mul(destination, generate(node.right))); break;
+        case PLUS:  emit(add(destination, generate(node.right.get()))); break;
+        case MINUS: emit(sub(destination, generate(node.right.get()))); break;
+        case STAR:  emit(mul(destination, generate(node.right.get()))); break;
         default: break;
     }
     return destination;
@@ -326,8 +328,8 @@ OperandPtr CodeGenerator::arithmetic(BinaryOperation& node) {
 OperandPtr CodeGenerator::relational(BinaryOperation& node) {
     auto destination = std::make_shared<TempOperand>(allocateStack(Size::DWord), Size::Byte);
     ComparisonType type = getComparisonType(node.operatorToken.type);
-    OperandPtr leftOp = generate(node.left);
-    OperandPtr rightOp = generate(node.right);
+    OperandPtr leftOp = generate(node.left.get());
+    OperandPtr rightOp = generate(node.right.get());
     emit(cmp(leftOp, rightOp));
     emit(set(destination, type));
     return destination;
@@ -342,10 +344,10 @@ OperandPtr CodeGenerator::logical(BinaryOperation& node) {
     std::string endLabel = ".CE" + std::to_string(index);
 
     if (node.operatorToken.type == AND) {
-        OperandPtr a = generate(node.left);
+        OperandPtr a = generate(node.left.get());
         emit(cmp(a, intConst(0)));
         emit(jmp(falseLabel, ComparisonType::Equal));
-        OperandPtr b = generate(node.right);
+        OperandPtr b = generate(node.right.get());
         emit(cmp(b, intConst(0)));
         emit(jmp(falseLabel, ComparisonType::Equal));
 
@@ -354,10 +356,10 @@ OperandPtr CodeGenerator::logical(BinaryOperation& node) {
         emit(label(falseLabel));
         emit(move(intConst(0), destination));
     } else {
-        OperandPtr a = generate(node.left);
+        OperandPtr a = generate(node.left.get());
         emit(cmp(a, intConst(1)));
         emit(jmp(trueLabel, ComparisonType::Equal));
-        OperandPtr b = generate(node.right);
+        OperandPtr b = generate(node.right.get());
         emit(cmp(b, intConst(1)));
         emit(jmp(trueLabel, ComparisonType::Equal));
 
@@ -372,10 +374,10 @@ OperandPtr CodeGenerator::logical(BinaryOperation& node) {
 }
 
 OperandPtr CodeGenerator::idiv(BinaryOperation& node) {
-    OperandPtr rightOp = generate(node.right);
+    OperandPtr rightOp = generate(node.right.get());
     auto temp = std::make_shared<TempOperand>(allocateStack(Size::DWord), Size::DWord);
     if (rightOp) emit(move(rightOp, temp));
-    OperandPtr leftOp = generate(node.left);
+    OperandPtr leftOp = generate(node.left.get());
     if (leftOp) emit(move(leftOp, reg(Register::AX)));
     emit(std::make_shared<CdqInstruction>());
     emit(std::make_shared<DivInstruction>(temp));
@@ -383,8 +385,8 @@ OperandPtr CodeGenerator::idiv(BinaryOperation& node) {
 }
 
 void CodeGenerator::visit(Assignment& node) {
-    OperandPtr temp = generate(node.right);
-    OperandPtr var = generate(node.left);
+    OperandPtr temp = generate(node.right.get());
+    OperandPtr var = generate(node.left.get());
     if (temp && var) emit(move(temp, var));
     m_result = var;
 }
@@ -405,7 +407,7 @@ void CodeGenerator::visit(Call& node) {
     size_t inRegs = addToStack ? argumentRegisters.size() : node.argumentList.size();
 
     for (size_t i = 0; i < inRegs; i++) {
-        OperandPtr argOp = generate(node.argumentList[i]->expression);
+        OperandPtr argOp = generate(node.argumentList[i]->expression.get());
         if (argOp) emit(move(argOp, reg(argumentRegisters[i], Size::DWord)));
     }
 
@@ -413,7 +415,7 @@ void CodeGenerator::visit(Call& node) {
     if (addToStack) {
         for (int64_t i = (int64_t)node.argumentList.size() - 1;
              i >= (int64_t)argumentRegisters.size(); i--) {
-            OperandPtr argOp = generate(node.argumentList[i]->expression);
+            OperandPtr argOp = generate(node.argumentList[i]->expression.get());
             if (argOp) emit(push(argOp));
             stackArgs++;
         }
@@ -433,7 +435,7 @@ void CodeGenerator::visit(MemberAccess& node) {
 void CodeGenerator::visit(CastExpression& node) {
     Size typeSize = getTypeSize(node.target);
     OperandPtr temp = std::make_shared<TempOperand>(allocateStack(typeSize), typeSize);
-    OperandPtr inner = generate(node.expr);
+    OperandPtr inner = generate(node.expr.get());
     if (inner) {
         inner->setSize(typeSize);
         emit(move(inner, temp));
