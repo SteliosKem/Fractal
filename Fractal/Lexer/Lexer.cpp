@@ -260,16 +260,20 @@ namespace Fractal {
 	}
 
 	bool Lexer::analyze(const std::filesystem::path& filepath) {
-		// Reset internal values
-		m_currentSourceIndex = -1;
 		if (!std::filesystem::exists(filepath)) {
 			m_errorHandler->reportError(Error("No valid file specified.", {}));
 			return false;
 		}
-		m_sourceCode = readFile(filepath);
+
+		// Reset every piece of per-file state so the lexer can be reused safely.
+		m_currentSourceIndex = -1;
+		m_currentCharacter = '\0';
 		m_currentLine = 1;
+		m_currentPosition = Position{};
 		m_currentPosition.line = 1;
 		m_currentPosition.sourceFilePath = filepath;
+		m_filePath = filepath;
+		m_sourceCode = readFile(filepath);
 		m_tokens.clear();
 
 		advance();

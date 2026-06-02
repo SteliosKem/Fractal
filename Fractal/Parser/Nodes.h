@@ -284,9 +284,9 @@ namespace Fractal {
 	class Argument {
 	public:
 		Argument(const std::string& name, ExpressionPtr expression) : name{ name }, expression{ expression } {}
-		void print() {
+		void print() const {
 			std::cout << "arg " << name;
-			expression->print();
+			if (expression) expression->print();
 		}
 	public:
 		std::string name;
@@ -347,10 +347,11 @@ namespace Fractal {
 		IfStatement(ExpressionPtr condition, StatementPtr ifBody, StatementPtr elseBody)
 			: condition{ condition }, ifBody{ ifBody }, elseBody{ elseBody } {}
 		void print(uint8_t indent = 0) const override {
+			(void)indent;
 			std::cout << "->  If ";
-			condition->print();
+			if (condition) condition->print();
 			std::cout << " then ";
-			ifBody->print();
+			if (ifBody) ifBody->print();
 			if (elseBody) {
 				std::cout << "    else ";
 				elseBody->print();
@@ -367,8 +368,9 @@ namespace Fractal {
 	public:
 		LoopStatement(StatementPtr loopBody) : loopBody{ loopBody } {}
 		void print(uint8_t indent = 0) const override {
+			(void)indent;
 			std::cout << "->  Loop ";
-			loopBody->print();
+			if (loopBody) loopBody->print();
 		}
 		TYPE(NodeType::LoopStatement)
 	public:
@@ -379,10 +381,11 @@ namespace Fractal {
 	public:
 		WhileStatement(ExpressionPtr condition, StatementPtr loopBody) : condition{ condition }, loopBody{ loopBody } {}
 		void print(uint8_t indent = 0) const override {
+			(void)indent;
 			std::cout << "->  While ";
-			condition->print();
+			if (condition) condition->print();
 			std::cout << " do ";
-			loopBody->print();
+			if (loopBody) loopBody->print();
 		}
 		TYPE(NodeType::WhileStatement)
 	public:
@@ -419,8 +422,9 @@ namespace Fractal {
 		ExpressionStatement(ExpressionPtr expression, const Position& expressionPos)
 			: expression{ expression }, expressionPos{ expressionPos } {}
 		void print(uint8_t indent = 0) const override {
+			(void)indent;
 			std::cout << "->  ";
-			expression->print();
+			if (expression) expression->print();
 			std::cout << '\n';
 		}
 		TYPE(NodeType::ExpressionStatement)
@@ -433,8 +437,9 @@ namespace Fractal {
 	public:
 		ReturnStatement(ExpressionPtr expression, const Token& token) : expression{ expression }, token{ token } {}
 		void print(uint8_t indent = 0) const override {
+			(void)indent;
 			std::cout << "->  return ";
-			expression->print();
+			if (expression) expression->print();
 			std::cout << '\n';
 		}
 		TYPE(NodeType::ReturnStatement)
@@ -450,9 +455,9 @@ namespace Fractal {
 	public:
 		Parameter(const Token& nameToken, TypePtr type, ExpressionPtr defaultValue)
 			: nameToken{ nameToken }, type{ type }, defaultValue { defaultValue } {}
-		void print() {
+		void print() const {
 			std::cout << "parameter " << nameToken.value;
-			defaultValue->print();
+			if (defaultValue) defaultValue->print();
 		}
 	public:
 		Token nameToken;

@@ -18,18 +18,18 @@ namespace Fractal {
 	}
 
 	std::string SemanticAnalyzer::createUnique(const std::string& name) {
-		static uint64_t index = 0;
-		return name + "." + std::to_string(index++);
-	}
-
-	uint8_t uniqueLoop() {
-		static uint8_t index = 0;
-		return index++;
+		return name + "." + std::to_string(m_uniqueIndex++);
 	}
 
 	bool SemanticAnalyzer::analyze(ProgramFile* program) {
 		m_program = program;
-		m_localStack = {};
+
+		// Reset per-run state so the analyzer can be reused safely across files.
+		m_localStack.clear();
+		m_loopStack.clear();
+		m_currentFunction = nullptr;
+		m_uniqueIndex = 0;
+		m_loopIndex = 0;
 
 		for (auto& definition : m_program->definitions)
 			if (!analyzeDefinition(definition)) return false;
@@ -247,7 +247,7 @@ namespace Fractal {
 	bool SemanticAnalyzer::analyzeStatementWhile(StatementPtr statement) {
 		std::shared_ptr<WhileStatement> whileStatement = static_pointer_cast<WhileStatement>(statement);
 
-		m_loopStack.push_back(uniqueLoop());
+		m_loopStack.push_back(m_loopIndex++);
 
 		if (!analyzeExpression(whileStatement->condition)) return false;
 		if (!analyzeStatement(whileStatement->loopBody)) return false;
@@ -259,7 +259,7 @@ namespace Fractal {
 
 	bool SemanticAnalyzer::analyzeStatementLoop(StatementPtr statement) {
 		std::shared_ptr<LoopStatement> loopStatement = static_pointer_cast<LoopStatement>(statement);
-		m_loopStack.push_back(uniqueLoop());
+		m_loopStack.push_back(m_loopIndex++);
 
 		if (!analyzeStatement(loopStatement->loopBody)) return false;
 

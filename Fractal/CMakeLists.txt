@@ -1,15 +1,52 @@
-﻿# CMakeList.txt : CMake project for Fractal, include source and define
+# CMakeList.txt : CMake project for Fractal, include source and define
 # project specific logic here.
-#
 
-# Add source to this project's executable.
-add_executable (Fractal "Fractal.cpp" "Fractal.h" "Utilities.h" "Common.h" "Utilities.cpp" "Lexer/Lexer.h" "Lexer/Token.h" "Lexer/Type.h" "Error/Position.h" "Lexer/Lexer.cpp" "Error/Error.h" "Error/Error.cpp" "Parser/Nodes.h" "Parser/Parser.h" "Parser/Parser.cpp" "Analysis/SemanticAnalyzer.h" "Analysis/SemanticAnalyzer.cpp" "CodeGeneration/CodeGenerator.h" "CodeGeneration/Instructions.h" "CodeGeneration/CodeGenerator.cpp" "CodeEmission/IntelCodeEmission.h" "CodeEmission/IntelCodeEmission.cpp" "Sequence/Sequence.h" "Sequence/Sequence.cpp" "json.hpp")
+add_executable(Fractal
+    Fractal.cpp
+    Fractal.h
+    Common.h
+    Utilities.h
+    Utilities.cpp
+    json.hpp
+
+    Types/Type.h
+
+    Error/Position.h
+    Error/Error.h
+    Error/Error.cpp
+
+    Lexer/Token.h
+    Lexer/Lexer.h
+    Lexer/Lexer.cpp
+
+    Parser/Nodes.h
+    Parser/Parser.h
+    Parser/Parser.cpp
+
+    Analysis/SemanticAnalyzer.h
+    Analysis/SemanticAnalyzer.cpp
+
+    CodeGeneration/Instructions.h
+    CodeGeneration/CodeGenerator.h
+    CodeGeneration/CodeGenerator.cpp
+
+    CodeEmission/CodeEmitter.h
+    CodeEmission/IntelCodeEmission.h
+    CodeEmission/IntelCodeEmission.cpp
+
+    Sequence/Sequence.h
+    Sequence/Sequence.cpp
+)
 
 target_include_directories(Fractal PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
-if (CMAKE_VERSION VERSION_GREATER 3.12)
-  set_property(TARGET Fractal PROPERTY CXX_STANDARD 20)
+set_property(TARGET Fractal PROPERTY CXX_STANDARD 20)
+set_property(TARGET Fractal PROPERTY CXX_STANDARD_REQUIRED ON)
+
+if(MSVC)
+    target_compile_options(Fractal PRIVATE /W4)
+else()
+    target_compile_options(Fractal PRIVATE -Wall -Wextra -Wno-unused-parameter -Wno-switch)
 endif()
 
-# TODO: Add tests and install targets if needed.
 install(TARGETS Fractal DESTINATION bin)

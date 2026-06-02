@@ -15,155 +15,190 @@
 #include <iostream>
 
 namespace Fractal {
+
 static std::string quote(const std::filesystem::path &p) {
-  return "\"" + p.string() + "\"";
+    return "\"" + p.string() + "\"";
 }
 
 static bool runCommand(const std::string &cmd) {
-  int rc = std::system(cmd.c_str());
-  if (rc != 0) {
-    std::cout << "Command failed (exit " << rc << "): " << cmd << '\n';
-    return false;
-  }
-  return true;
+    int rc = std::system(cmd.c_str());
+    if (rc != 0) {
+        std::cout << "Command failed (exit " << rc << "): " << cmd << '\n';
+        return false;
+    }
+    return true;
 }
 
 void to_json(json &j, const Project &p) {
-  j = json{{"Name", p.name},
-           {"SourcePath", p.srcPath},
-           {"BuildPath", p.outPath},
-           {"Architecture", p.architecture}};
+    j = json{{"Name", p.name},
+             {"SourcePath", p.srcPath},
+             {"BuildPath", p.outPath},
+             {"Architecture", p.architecture}};
 }
 
 void from_json(const json &j, Project &p) {
-  j.at("Name").get_to(p.name);
-  j.at("SourcePath").get_to(p.srcPath);
-  j.at("BuildPath").get_to(p.outPath);
-  j.at("Architecture").get_to(p.architecture);
+    j.at("Name").get_to(p.name);
+    j.at("SourcePath").get_to(p.srcPath);
+    j.at("BuildPath").get_to(p.outPath);
+    j.at("Architecture").get_to(p.architecture);
 }
 
-bool createProject(const std::filesystem::path &projectDir,
-                   const Project &project) {
-  writeFile(json(project).dump(), projectDir / "build_config.json");
+std::string defaultArchitecture() {
+#if defined(_WIN32) || defined(_WIN64)
+    return "x86_64-intel-win";
+#else
+    return "x86_64-intel-mac";
+#endif
+}
 
-  std::string sampleCode = R"(/* Sample Fractal main file. 
+bool createProject(const std::filesystem::path &projectDir, const Project &project) {
+    writeFile(json(project).dump(), projectDir / "build_config.json");
+
+    std::string sampleCode = R"(/* Sample Fractal main file.
 This file, which has the same name as the project, acts as the main function of the program.
 Program execution starts from the first statement outside of the definitions header. */
 
 <define>
 
-fn sampleFunction(): i32 {
+fn main(): i32 {
     return 0;
 }
 
 <!define>
+)";
 
-sampleFunction();)";
+    std::filesystem::path srcDir = projectDir / project.srcPath;
+    std::filesystem::path outDir = projectDir / project.outPath;
 
-  std::filesystem::path srcDir = projectDir / project.srcPath;
-  std::filesystem::path outDir = projectDir / project.outPath;
+    std::filesystem::create_directory(srcDir);
+    std::filesystem::create_directory(outDir);
 
-  std::filesystem::create_directory(srcDir);
-  std::filesystem::create_directory(outDir);
+    writeFile(sampleCode, srcDir / (project.name + ".frc"));
 
-  writeFile(sampleCode, srcDir / (project.name + ".frc"));
-
-  return true;
+    return true;
 }
 
-bool buildProject(const std::filesystem::path &projectDir) {
-  if (!std::filesystem::exists(projectDir / "build_config.json")) {
-    std::cout
-        << "There is no build_config.json file in the current directory.\n";
+// Parses an architecture string to a Platform. Returns false on unknown values.
+static bool parseArchitecture(const std::string &arch, Platform &platform) {
+    if (arch == "x86_64-intel-win") { platform = Platform::Win; return true; }
+    if (arch == "x86_64-intel-mac") { platform = Platform::Mac; return true; }
     return false;
-  }
+}
 
-  Project project{};
-  json doc = json::parse(readFile(projectDir / "build_config.json"));
-  doc.get_to(project);
+// Runs the compiler pipeline on a single source file and writes <stem>.asm,
+// <stem>.o, and the final native executable into outDir. The stem is the
+// source file's name without extension.
+static bool compilePipeline(const std::filesystem::path &sourceFile,
+                            const std::filesystem::path &outDir,
+                            Platform platform,
+                            const BuildOptions &options) {
+    ErrorHandler errorHandler;
+    Lexer lexer(&errorHandler);
+    Parser parser(&errorHandler);
+    SemanticAnalyzer semanticAnalyzer(&errorHandler);
+    CodeGenerator codeGenerator(&errorHandler);
+    IntelCodeEmission emitter{};
 
-  Platform platform;
-  if (project.architecture == "x86_64-intel-win")
-    platform = Platform::Win;
-  else if (project.architecture == "x86_64-intel-mac")
-    platform = Platform::Mac;
-  else {
-    std::cout << "Invalid architecture specified in build config. Aborting.";
-    return false;
-  }
+    if (!lexer.analyze(sourceFile)) {
+        errorHandler.outputErrors();
+        return false;
+    }
+    if (options.verbose) lexer.print();
 
-  std::filesystem::path srcPath = projectDir / project.srcPath;
+    if (!parser.parse(lexer.getTokenList())) {
+        errorHandler.outputErrors();
+        return false;
+    }
+    if (options.verbose) {
+        for (auto &definition : parser.definitions()) definition->print();
+        for (auto &statement : parser.statements()) statement->print();
+    }
 
-  Fractal::ErrorHandler errorHandler;
-  Fractal::Lexer lexer(&errorHandler);
-  Fractal::Parser parser(&errorHandler);
-  Fractal::SemanticAnalyzer semanticAnalyzer(&errorHandler);
-  Fractal::CodeGenerator codeGenerator(&errorHandler);
-  Fractal::IntelCodeEmission emitter{};
-
-  if (!lexer.analyze(srcPath / (project.name + ".frc"))) {
-    errorHandler.outputErrors();
-    return false;
-  }
-  lexer.print();
-
-  if (!parser.parse(lexer.getTokenList())) {
-    errorHandler.outputErrors();
-    return false;
-  }
-
-  for (auto &definition : parser.definitions())
-    definition->print();
-  for (auto &statement : parser.statements())
-    statement->print();
-
-  if (!semanticAnalyzer.analyze(&parser.program())) {
+    if (!semanticAnalyzer.analyze(&parser.program())) {
+        errorHandler.outputWarnings();
+        errorHandler.outputErrors();
+        return false;
+    }
     errorHandler.outputWarnings();
-    errorHandler.outputErrors();
-    return false;
-  }
-  errorHandler.outputWarnings();
 
-  std::cout << "Analysis Completed" << '\n';
+    const auto &instructions = codeGenerator.generate(parser.program(), platform);
+    if (options.verbose) {
+        std::cout << "Analysis Completed\n";
+        for (auto instruction : instructions) instruction->print();
+        std::cout << '\n';
+    }
 
-  for (auto &definition : parser.definitions())
-    definition->print();
-  for (auto &statement : parser.statements())
-    statement->print();
+    std::string asmOutput = emitter.emit(&codeGenerator.instructions(),
+                                         codeGenerator.externals(), platform);
+    if (options.verbose) std::cout << asmOutput;
 
-  for (auto instruction : codeGenerator.generate(parser.program(), platform))
-    instruction->print();
+    std::filesystem::create_directories(outDir);
 
-  std::cout << '\n';
+    std::string stem = sourceFile.stem().string();
+    std::filesystem::path asmPath = outDir / (stem + ".asm");
+    std::filesystem::path objPath = outDir / (stem + ".o");
 
-  std::filesystem::path intermediate =
-      projectDir / project.outPath / "intermediate";
-  if (!std::filesystem::exists(intermediate))
-    std::filesystem::create_directory(intermediate);
+    writeFile(asmOutput, asmPath);
 
-  std::filesystem::path asmPath = intermediate / (project.name + ".asm");
-  std::filesystem::path objPath = intermediate / (project.name + ".o");
+    bool ok = false;
+    if (platform == Platform::Win) {
+        std::filesystem::path exePath = outDir / (stem + ".exe");
+        ok = runCommand("nasm -f win64 " + quote(asmPath) + " -o " + quote(objPath))
+          && runCommand("gcc " + quote(objPath) + " -o " + quote(exePath));
+    } else {
+        std::filesystem::path binPath = outDir / stem;
+        ok = runCommand("nasm -f macho64 " + quote(asmPath) + " -o " + quote(objPath))
+          && runCommand("arch -x86_64 gcc " + quote(objPath) + " -o " + quote(binPath));
+    }
 
-  std::cout << emitter.emit(&codeGenerator.instructions(),
-                            codeGenerator.externals(), platform);
-  writeFile(emitter.output(), asmPath);
+    if (!options.keepAsm) {
+        std::error_code ec;
+        std::filesystem::remove(asmPath, ec);
+    }
 
-  if (platform == Platform::Win) {
-    std::filesystem::path exePath = intermediate / (project.name + ".exe");
-    if (!runCommand("nasm -f win64 " + quote(asmPath) + " -o " + quote(objPath)))
-      return false;
-    if (!runCommand("gcc " + quote(objPath) + " -o " + quote(exePath)))
-      return false;
-  } else if (platform == Platform::Mac) {
-    std::filesystem::path binPath = intermediate / project.name;
-    if (!runCommand("nasm -f macho64 " + quote(asmPath) + " -o " +
-                    quote(objPath)))
-      return false;
-    if (!runCommand("arch -x86_64 gcc " + quote(objPath) + " -o " +
-                    quote(binPath)))
-      return false;
-  }
-
-  return true;
+    return ok;
 }
+
+bool buildProject(const std::filesystem::path &projectDir, const BuildOptions &options) {
+    if (!std::filesystem::exists(projectDir / "build_config.json")) {
+        std::cout << "There is no build_config.json file in the current directory.\n";
+        return false;
+    }
+
+    Project project{};
+    json doc = json::parse(readFile(projectDir / "build_config.json"));
+    doc.get_to(project);
+
+    Platform platform;
+    if (!parseArchitecture(project.architecture, platform)) {
+        std::cout << "Invalid architecture '" << project.architecture
+                  << "' specified in build config. Aborting.\n";
+        return false;
+    }
+
+    std::filesystem::path sourceFile =
+        projectDir / project.srcPath / (project.name + ".frc");
+    std::filesystem::path outDir = projectDir / project.outPath / "intermediate";
+
+    return compilePipeline(sourceFile, outDir, platform, options);
+}
+
+bool buildSingleFile(const std::filesystem::path &sourceFile,
+                     const std::filesystem::path &outDir,
+                     const BuildOptions &options) {
+    if (!std::filesystem::exists(sourceFile)) {
+        std::cout << "Source file does not exist: " << sourceFile << '\n';
+        return false;
+    }
+
+    Platform platform;
+    parseArchitecture(defaultArchitecture(), platform);
+
+    std::filesystem::path target = outDir.empty()
+        ? sourceFile.parent_path()
+        : outDir;
+
+    return compilePipeline(sourceFile, target, platform, options);
+}
+
 } // namespace Fractal

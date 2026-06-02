@@ -4,17 +4,17 @@
 
 #pragma once
 
+#include "CodeEmitter.h"
 #include "Utilities.h"
-#include "CodeGeneration/CodeGenerator.h"
 
 namespace Fractal {
 
-	class IntelCodeEmission {
+	class IntelCodeEmission : public CodeEmitter {
 	public:
 		IntelCodeEmission() = default;
 
-		const std::string& emit(const InstructionList* instructions, const std::vector<std::string>* externals, Platform platform);
-		const std::string& output() const;
+		const std::string& emit(const InstructionList* instructions, const std::vector<std::string>* externals, Platform platform) override;
+		const std::string& output() const override;
 	private:
 		// -- FROM INSTRUCTION LIST --
 		void emitInstruction(InstructionPtr instruction);

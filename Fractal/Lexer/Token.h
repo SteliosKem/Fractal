@@ -5,7 +5,7 @@
 #pragma once
 #include "Common.h"
 #include "Error/Position.h"
-#include "Type.h"
+#include "Types/Type.h"
 
 namespace Fractal {
 enum TokenType {
@@ -172,9 +172,8 @@ const std::unordered_map<std::string, TokenType> KEYWORD_MAP = {
 
 // Get Keyword TokenType from string if it exists
 inline TokenType getKeyword(const std::string &name) {
-  if (KEYWORD_MAP.find(name) != KEYWORD_MAP.end())
-    return KEYWORD_MAP.at(name);
-  return NO_TYPE;
+  auto it = KEYWORD_MAP.find(name);
+  return it != KEYWORD_MAP.end() ? it->second : NO_TYPE;
 }
 
 // Check if a token is of type Type

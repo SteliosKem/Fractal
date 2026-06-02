@@ -85,6 +85,11 @@ namespace Fractal {
 		// This will be expanded later
 		std::vector<std::string> m_userDefinedTypes{};
 
+		// Per-analysis monotonic counters. Reset in analyze() so reusing the
+		// analyzer across files does not leak naming state between runs.
+		uint64_t m_uniqueIndex{ 0 };
+		uint8_t m_loopIndex{ 0 };
+
 		ErrorHandler* m_errorHandler{ nullptr };
 	};
 }

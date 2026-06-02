@@ -22,24 +22,23 @@ namespace Fractal {
 	std::string color(Color color) {
 		switch (color)
 		{
-		case Fractal::Color::Red:
-			return "\033[91m";
-		case Fractal::Color::White:
-			return "\033[97m";
-		case Fractal::Color::Purple:
-			return "\033[95m";
-		case Fractal::Color::LightBlue:
-			return "\033[96m";
-		case Fractal::Color::Bold:
-			return "\033[1m";
-		case Fractal::Color::Underlined:
-			return "\033[4m";
-		case Fractal::Color::NotUnderlined:
-			return "\033[24m";
-		case Fractal::Color::Default:
-			return "\033[0m";
-		default:
-			return "";
+		case Color::Red:       return "\033[91m";
+		case Color::White:     return "\033[97m";
+		case Color::Purple:    return "\033[95m";
+		case Color::LightBlue: return "\033[96m";
+		case Color::Default:   return "\033[0m";
+		default:               return "";
+		}
+	}
+
+	std::string attribute(Attribute attribute) {
+		switch (attribute)
+		{
+		case Attribute::Bold:          return "\033[1m";
+		case Attribute::Underlined:    return "\033[4m";
+		case Attribute::NotUnderlined: return "\033[24m";
+		case Attribute::Reset:         return "\033[0m";
+		default:                       return "";
 		}
 	}
 
@@ -69,14 +68,16 @@ namespace Fractal {
 		std::string _color;
 		if (type == ErrorType::Error) {
 			_color = color(Color::Red);
-			std::cout << _color << color(Color::Underlined) << "Error" << color(Color::NotUnderlined) << ": " << color(Color::Default);
+			std::cout << _color << attribute(Attribute::Underlined) << "Error"
+				<< attribute(Attribute::NotUnderlined) << ": " << attribute(Attribute::Reset);
 		}
 		else if (type == ErrorType::Warning) {
 			_color = color(Color::LightBlue);
-			std::cout << _color << color(Color::Underlined) << "Warning" << color(Color::NotUnderlined) << ": " << color(Color::Default);
+			std::cout << _color << attribute(Attribute::Underlined) << "Warning"
+				<< attribute(Attribute::NotUnderlined) << ": " << attribute(Attribute::Reset);
 		}
-		
-		std::cout << color(Color::White) << error.message << color(Color::Default) << '\n';
+
+		std::cout << color(Color::White) << error.message << attribute(Attribute::Reset) << '\n';
 
 		// Starting and ending indices of the error in the 'line' string
 		uint32_t startIndex = error.position.startIndex - error.position.lineIndexOffset;

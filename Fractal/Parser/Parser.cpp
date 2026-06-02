@@ -3,7 +3,7 @@
 // Copyright (c) 2025-present, Stylianos Kementzetzidis
 
 #include "Parser.h"
-#include "Lexer/Type.h"
+#include "Types/Type.h"
 
 namespace Fractal {
 	uint8_t tokenBindingPower(const Token& token) {

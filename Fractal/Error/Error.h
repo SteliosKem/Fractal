@@ -12,10 +12,14 @@ namespace Fractal {
 		White,
 		Purple,
 		LightBlue,
+		Default
+	};
+
+	enum class Attribute {
 		Bold,
 		Underlined,
 		NotUnderlined,
-		Default
+		Reset
 	};
 
 	class Error {
