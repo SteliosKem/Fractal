@@ -304,7 +304,6 @@ namespace Fractal {
 		Token* token = m_currentToken;
 		advance();
 		StatementPtr statement = std::make_shared<ReturnStatement>(parseExpression(), *token);
-		std::cout << currentToken().value << "\n";
 		CONSUME_SEMICOLON();
 		return statement;
 	}

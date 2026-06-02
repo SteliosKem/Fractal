@@ -283,8 +283,10 @@ namespace Fractal {
 			m_tokens.push_back(lex());
 
 		// Always terminate the stream with an EOF token so downstream
-		// passes (Parser::parse) have a sentinel to stop on.
-		m_tokens.push_back(Token{ SPECIAL_EOF, "EOF", m_currentPosition });
+		// passes (Parser::parse) have a sentinel to stop on. Skip if lex()
+		// already pushed one (e.g. EOF inside a trailing comment).
+		if (m_tokens.empty() || m_tokens.back().type != SPECIAL_EOF)
+			m_tokens.push_back(Token{ SPECIAL_EOF, "EOF", m_currentPosition });
 
 		return !m_errorHandler->hasErrors();
 	}

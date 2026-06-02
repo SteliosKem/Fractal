@@ -1,0 +1,11 @@
+<define>
+
+fn main(): i32 {
+    let x: i32 = 10;
+    if x > 5 => {
+        return 7;
+    }
+    return 0;
+}
+
+<!define>
