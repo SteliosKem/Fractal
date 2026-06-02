@@ -95,7 +95,7 @@ namespace Fractal {
 			case '/':
 				// Handle Single-Line comments
 				if (peek() == '/') {
-					while (currentCharacter() != '\n' || currentCharacter() == '\0')
+					while (currentCharacter() != '\n' && currentCharacter() != '\0')
 						advance();
 					if (currentCharacter() == '\0')
 						return;
@@ -277,6 +277,10 @@ namespace Fractal {
 		// Lex until End of File
 		while (currentCharacter() != '\0' && !m_errorHandler->hasErrors())
 			m_tokens.push_back(lex());
+
+		// Always terminate the stream with an EOF token so downstream
+		// passes (Parser::parse) have a sentinel to stop on.
+		m_tokens.push_back(Token{ SPECIAL_EOF, "EOF", m_currentPosition });
 
 		return !m_errorHandler->hasErrors();
 	}

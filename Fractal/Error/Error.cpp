@@ -39,7 +39,7 @@ namespace Fractal {
 		case Fractal::Color::Default:
 			return "\033[0m";
 		default:
-			break;
+			return "";
 		}
 	}
 

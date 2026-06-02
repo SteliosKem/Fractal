@@ -146,9 +146,9 @@ namespace Fractal {
 		INSTR_TYPE(Move)
 		virtual void print() const override {
 			std::cout << "Move ";
-			source->print();
+			if (source) source->print(); else std::cout << "<null>";
 			std::cout << ", ";
-			destination->print();
+			if (destination) destination->print(); else std::cout << "<null>";
 			std::cout << '\n';
 		}
 	public:

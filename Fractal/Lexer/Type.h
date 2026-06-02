@@ -142,10 +142,10 @@ namespace Fractal {
 				if (a_->parameterTypes.size() != b_->parameterTypes.size()) return false;
 				for (size_t i = 0; i < a_->parameterTypes.size(); i++)
 					if (!sameType(a_->parameterTypes[i], b_->parameterTypes[i])) return false;
+				return true;
 			}
 			default: return false;
 		}
-		return true;
 	}
 
 	inline Size isNumType(TypePtr type) {

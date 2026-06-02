@@ -11,7 +11,23 @@
 #include "Lexer/Lexer.h"
 #include "Parser/Parser.h"
 
+#include <cstdlib>
+#include <iostream>
+
 namespace Fractal {
+static std::string quote(const std::filesystem::path &p) {
+  return "\"" + p.string() + "\"";
+}
+
+static bool runCommand(const std::string &cmd) {
+  int rc = std::system(cmd.c_str());
+  if (rc != 0) {
+    std::cout << "Command failed (exit " << rc << "): " << cmd << '\n';
+    return false;
+  }
+  return true;
+}
+
 void to_json(json &j, const Project &p) {
   j = json{{"Name", p.name},
            {"SourcePath", p.srcPath},
@@ -120,34 +136,32 @@ bool buildProject(const std::filesystem::path &projectDir) {
 
   std::cout << '\n';
 
+  std::filesystem::path intermediate =
+      projectDir / project.outPath / "intermediate";
+  if (!std::filesystem::exists(intermediate))
+    std::filesystem::create_directory(intermediate);
+
+  std::filesystem::path asmPath = intermediate / (project.name + ".asm");
+  std::filesystem::path objPath = intermediate / (project.name + ".o");
+
+  std::cout << emitter.emit(&codeGenerator.instructions(),
+                            codeGenerator.externals(), platform);
+  writeFile(emitter.output(), asmPath);
+
   if (platform == Platform::Win) {
-    std::cout << emitter.emit(&codeGenerator.instructions(),
-                              codeGenerator.externals(), Platform::Win);
-
-    std::filesystem::path intermediate =
-        projectDir / project.outPath / "intermediate";
-    if (!std::filesystem::exists(intermediate))
-      std::filesystem::create_directory(intermediate);
-    writeFile(emitter.output(), intermediate / (project.name + ".asm"));
-
-    std::string path = project.outPath + "/intermediate/" + project.name;
-
-    system(("nasm -f elf64 " + path + ".asm -o " + path + ".o").c_str());
-    system(("gcc " + path + ".o -o " + path + ".exe").c_str());
+    std::filesystem::path exePath = intermediate / (project.name + ".exe");
+    if (!runCommand("nasm -f win64 " + quote(asmPath) + " -o " + quote(objPath)))
+      return false;
+    if (!runCommand("gcc " + quote(objPath) + " -o " + quote(exePath)))
+      return false;
   } else if (platform == Platform::Mac) {
-    std::cout << emitter.emit(&codeGenerator.instructions(),
-                              codeGenerator.externals(), Platform::Mac);
-
-    std::filesystem::path intermediate =
-        projectDir / project.outPath / "intermediate";
-    if (!std::filesystem::exists(intermediate))
-      std::filesystem::create_directory(intermediate);
-    writeFile(emitter.output(), intermediate / (project.name + ".asm"));
-
-    std::string path = project.outPath + "/intermediate/" + project.name;
-
-    system(("nasm -f macho64 " + path + ".asm -o " + path + ".o").c_str());
-    system(("arch -x86_64 gcc " + path + ".o -o " + path).c_str());
+    std::filesystem::path binPath = intermediate / project.name;
+    if (!runCommand("nasm -f macho64 " + quote(asmPath) + " -o " +
+                    quote(objPath)))
+      return false;
+    if (!runCommand("arch -x86_64 gcc " + quote(objPath) + " -o " +
+                    quote(binPath)))
+      return false;
   }
 
   return true;

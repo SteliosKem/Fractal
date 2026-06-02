@@ -37,6 +37,7 @@ namespace Fractal {
 			case Size::Word: return "WORD";
 			case Size::DWord: return "DWORD";
 			case Size::QWord: return "QWORD";
+			default: return "";
 		}
 	}
 
@@ -105,9 +106,9 @@ namespace Fractal {
 	}
 
 	void IntelCodeEmission::emitBitwiseNot(InstructionPtr instruction) {
-		std::shared_ptr<NegateInstruction> negInstruction = static_pointer_cast<NegateInstruction>(instruction);
+		std::shared_ptr<BitwiseNotInstruction> notInstruction = static_pointer_cast<BitwiseNotInstruction>(instruction);
 
-		writeILine("not " + getOperandStr(negInstruction->source));
+		writeILine("not " + getOperandStr(notInstruction->source));
 	}
 
 	void IntelCodeEmission::emitAdd(InstructionPtr instruction) {
@@ -123,9 +124,9 @@ namespace Fractal {
 	}
 
 	void IntelCodeEmission::emitMul(InstructionPtr instruction) {
-		std::shared_ptr<SubtractInstruction> subInstruction = static_pointer_cast<SubtractInstruction>(instruction);
+		std::shared_ptr<MultiplyInstruction> mulInstruction = static_pointer_cast<MultiplyInstruction>(instruction);
 
-		writeILine("imul " + getOperandStr(subInstruction->destination) + ", " + getOperandStr(subInstruction->other));
+		writeILine("imul " + getOperandStr(mulInstruction->destination) + ", " + getOperandStr(mulInstruction->other));
 	}
 
 	void IntelCodeEmission::emitCdq() {
@@ -213,6 +214,7 @@ namespace Fractal {
 	}
 
 	std::string IntelCodeEmission::getOperandStr(OperandPtr operand, Size externalSize) {
+		if (!operand) return "";
 		switch (operand->getType())
 		{
 		case OperandType::IntegerConstant: return std::to_string(static_pointer_cast<IntegerConstant>(operand)->integer);
@@ -229,6 +231,7 @@ namespace Fractal {
 			case Size::Word: return "WORD";
 			case Size::DWord: return "DWORD";
 			case Size::QWord: return "QWORD";
+			default: return "";
 		}
 	}
 

@@ -47,6 +47,7 @@ namespace Fractal {
 
 		for(auto definition : m_program->definitions)
 			if(!analyzeDefinition(definition)) return false;
+		return true;
 	}
 
 	bool SemanticAnalyzer::analyzeDefinition(DefinitionPtr definition, bool toSave) {
@@ -488,7 +489,7 @@ namespace Fractal {
 		}
 
 		if (!analyzeExpression(assignment->left) || !analyzeExpression(assignment->right)) return false;
-		if (!tryCast(&assignment->right, assignment->right->expressionType)) {
+		if (!tryCast(&assignment->right, assignment->left->expressionType)) {
 			m_errorHandler->reportError({ "Cannot assign expression of type '" + assignment->right->expressionType->typeName()
 				+ "' to variable of type '" + assignment->left->expressionType->typeName() + "'", assignment->operatorToken.position});
 			return false;

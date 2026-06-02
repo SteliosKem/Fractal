@@ -10,10 +10,24 @@ namespace Fractal {
 			case TypeInfo::Fundamental: {
 				std::shared_ptr<FundamentalType> fundamentalType = static_pointer_cast<FundamentalType>(type);
 				switch (fundamentalType->type) {
-				case BasicType::I32: return Size::DWord;
-				case BasicType::I64: return Size::QWord;
+				case BasicType::I32:
+				case BasicType::U32:
+				case BasicType::F32:
+					return Size::DWord;
+				case BasicType::I64:
+				case BasicType::U64:
+				case BasicType::F64:
+					return Size::QWord;
+				default:
+					return Size::DWord;
 				}
 			}
+			case TypeInfo::Pointer:
+			case TypeInfo::Array:
+			case TypeInfo::Function:
+				return Size::QWord;
+			default:
+				return Size::DWord;
 		}
 	}
 
@@ -37,8 +51,8 @@ namespace Fractal {
 
 	void CodeGenerator::generateDefinition(DefinitionPtr definition, InstructionList* instructions) {
 		switch (definition->getType()) {
-			case NodeType::FunctionDefinition: generateFunctionDefinition(definition, instructions);
-			case NodeType::DecoratedDefinition: generateDecoratedDefinition(definition, instructions);
+			case NodeType::FunctionDefinition: generateFunctionDefinition(definition, instructions); return;
+			case NodeType::DecoratedDefinition: generateDecoratedDefinition(definition, instructions); return;
 			default: return;
 		}
 	}
@@ -74,8 +88,8 @@ namespace Fractal {
 		uint32_t stackArgs = 0;
 
 		if (addToStack) {
-			for (size_t i = func->parameterList.size() - 1; i >= argumentRegisters.size(); i--)
-				m_localVarMap[func->parameterList[i]->nameToken.value] = std::make_shared<TempOperand>(-(i - argumentRegisters.size() + 2) * 8, getTypeSize(func->parameterList[i]->type));
+			for (int64_t i = (int64_t)func->parameterList.size() - 1; i >= (int64_t)argumentRegisters.size(); i--)
+				m_localVarMap[func->parameterList[i]->nameToken.value] = std::make_shared<TempOperand>(-(i - (int64_t)argumentRegisters.size() + 2) * 8, getTypeSize(func->parameterList[i]->type));
 		}
 
 		generateStatement(func->functionBody, &mainFunc->instructions);
@@ -92,8 +106,12 @@ namespace Fractal {
 		Size varSize = getTypeSize(varDef->variableType);
 		OperandPtr varPtr = std::make_shared<TempOperand>(allocateStack(varSize), varSize);
 		m_localVarMap[varDef->nameToken.value] = varPtr;
-		if (varDef->initializer)
-			instructions->push_back(move(generateExpression(varDef->initializer, instructions), varPtr));
+		if (varDef->initializer) {
+			OperandPtr init = generateExpression(varDef->initializer, instructions);
+			// init can be null if the initializer uses an expression form that codegen
+			// does not yet lower (e.g. AddressOf, Dereference). Skip rather than crash.
+			if (init) instructions->push_back(move(init, varPtr));
+		}
 	}
 
 	InstructionPtr CodeGenerator::label(const std::string& name) {
@@ -268,8 +286,9 @@ namespace Fractal {
 			case OR:
 			case AND:
 				return generateLogical(binaryOp, instructions);
+			default:
+				return nullptr;
 		}
-
 	}
 	
 	OperandPtr CodeGenerator::generateArithmeticOperation(std::shared_ptr<BinaryOperation> expression, InstructionList* instructions) {
@@ -306,7 +325,7 @@ namespace Fractal {
 			case LESS_EQUAL:
 				return ComparisonType::LessEqual;
 			default:
-				break;
+				return ComparisonType::None;
 		}
 	}
 
@@ -393,7 +412,7 @@ namespace Fractal {
 		uint32_t stackArgs = 0;
 
 		if (addToStack) {
-			for (size_t i = callExpr->argumentList.size() - 1; i >= argumentRegisters.size(); i--) {
+			for (int64_t i = (int64_t)callExpr->argumentList.size() - 1; i >= (int64_t)argumentRegisters.size(); i--) {
 				instructions->push_back(push(generateExpression(callExpr->argumentList[i]->expression, instructions)));
 				stackArgs++;
 			}
@@ -428,8 +447,8 @@ namespace Fractal {
 
 	InstructionPtr CodeGenerator::move(OperandPtr source, OperandPtr destination) {
 		auto instr = std::make_shared<MoveInstruction>(source, destination);
-		instr->destSize = instr->destination->getSize();
-		instr->srcSize = instr->destination->getSize();
+		if (destination) instr->destSize = destination->getSize();
+		if (source)      instr->srcSize  = source->getSize();
 		return instr;
 	}
 
@@ -543,6 +562,9 @@ namespace Fractal {
 
 	void CodeGenerator::validateMove(InstructionList* instructions, size_t i) {
 		std::shared_ptr<MoveInstruction> moveInstruction = static_pointer_cast<MoveInstruction>((*instructions)[i]);
+		// Defensive: an upstream codegen path may leave source/destination null
+		// when it encounters an expression form it cannot lower yet.
+		if (!moveInstruction->source || !moveInstruction->destination) return;
 		if (moveInstruction->destSize < moveInstruction->srcSize && moveInstruction->source->getType() != OperandType::IntegerConstant) {
 			moveInstruction->srcSize = moveInstruction->destSize;
 		}
