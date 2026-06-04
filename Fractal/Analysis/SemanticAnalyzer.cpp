@@ -295,6 +295,15 @@ void SemanticAnalyzer::visit(MemberAccess& node) {
     if (dynamic_cast<Identifier*>(node.left.get())) {
         analyze(node.left);
     }
+    // Without struct layout information in the type system we can't resolve
+    // the member's type. Failing here with a clear message prevents callers
+    // from dereferencing a null `expressionType` further up the chain (which
+    // used to segfault inside sameType).
+    m_errorHandler->reportError(
+        {"Member access is not yet supported in semantic analysis "
+         "(struct layouts are not implemented)",
+         node.operatorToken.position});
+    m_ok = false;
 }
 
 void SemanticAnalyzer::visit(CastExpression& node) {

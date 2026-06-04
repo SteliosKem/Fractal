@@ -132,6 +132,10 @@ namespace Fractal {
 	};
 
 	inline bool sameType(const TypePtr a, const TypePtr b) {
+		// Defensive: if either side has no resolved type, no two types are
+		// equal. This guards against analyzer paths that forgot to attach an
+		// expressionType (the common cause of historical segfaults here).
+		if (!a || !b) return false;
 		if (a->typeInfo() != b->typeInfo()) return false;
 
 		switch (a->typeInfo()) {
