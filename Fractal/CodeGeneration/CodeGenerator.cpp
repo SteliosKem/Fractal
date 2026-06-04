@@ -431,8 +431,6 @@ namespace Fractal {
     }
 
     void CodeGenerator::visit(Call& node) {
-        if (m_platform == Platform::Mac)
-            node.funcToken.value = "_" + node.funcToken.value;
         int stackPadding = (m_platform == Platform::Win ? 32 : 0);
         if (node.argumentList.size() % 2 == 0)
             stackPadding += 8;
