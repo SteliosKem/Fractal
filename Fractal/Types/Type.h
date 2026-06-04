@@ -56,7 +56,11 @@ namespace Fractal {
 		virtual std::string typeName() const { return ""; }
 	};
 
-	using TypePtr = std::shared_ptr<Type>;
+	// Types are immutable once constructed and freely shared between the AST
+	// (Expression::expressionType, VariableDefinition::variableType, ...) and
+	// the SemanticAnalyzer's symbol table. shared_ptr<const Type> documents
+	// that no consumer is allowed to mutate the type they receive.
+	using TypePtr = std::shared_ptr<const Type>;
 
 	class FundamentalType : public Type {
 	public:
@@ -131,13 +135,13 @@ namespace Fractal {
 		if (a->typeInfo() != b->typeInfo()) return false;
 
 		switch (a->typeInfo()) {
-			case TypeInfo::Fundamental: return static_pointer_cast<FundamentalType>(a)->type == static_pointer_cast<FundamentalType>(b)->type;
-			case TypeInfo::UserDefined: return static_pointer_cast<UserDefinedType>(a)->name == static_pointer_cast<UserDefinedType>(b)->name;
-			case TypeInfo::Array: return sameType(static_pointer_cast<ArrayType>(a)->arrayType, static_pointer_cast<ArrayType>(b)->arrayType);
-			case TypeInfo::Pointer: return sameType(static_pointer_cast<PointerType>(a)->pointingType, static_pointer_cast<PointerType>(b)->pointingType);
+			case TypeInfo::Fundamental: return static_pointer_cast<const FundamentalType>(a)->type == static_pointer_cast<const FundamentalType>(b)->type;
+			case TypeInfo::UserDefined: return static_pointer_cast<const UserDefinedType>(a)->name == static_pointer_cast<const UserDefinedType>(b)->name;
+			case TypeInfo::Array: return sameType(static_pointer_cast<const ArrayType>(a)->arrayType, static_pointer_cast<const ArrayType>(b)->arrayType);
+			case TypeInfo::Pointer: return sameType(static_pointer_cast<const PointerType>(a)->pointingType, static_pointer_cast<const PointerType>(b)->pointingType);
 			case TypeInfo::Function: {
-				std::shared_ptr<FunctionType> a_ = static_pointer_cast<FunctionType>(a);
-				std::shared_ptr<FunctionType> b_ = static_pointer_cast<FunctionType>(b);
+				std::shared_ptr<const FunctionType> a_ = static_pointer_cast<const FunctionType>(a);
+				std::shared_ptr<const FunctionType> b_ = static_pointer_cast<const FunctionType>(b);
 				if (!sameType(a_->returnType, b_->returnType)) return false;
 				if (a_->parameterTypes.size() != b_->parameterTypes.size()) return false;
 				for (size_t i = 0; i < a_->parameterTypes.size(); i++)
@@ -150,7 +154,7 @@ namespace Fractal {
 
 	inline Size isNumType(TypePtr type) {
 		if(type->typeInfo() != TypeInfo::Fundamental) return Size::None;
-		std::shared_ptr<FundamentalType> funType = static_pointer_cast<FundamentalType>(type);
+		std::shared_ptr<const FundamentalType> funType = static_pointer_cast<const FundamentalType>(type);
 		switch (funType->type)
 		{
 		case BasicType::I32:

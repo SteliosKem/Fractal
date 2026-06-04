@@ -9,6 +9,30 @@
 
 namespace Fractal {
 
+// True if `e` is an l-value the language allows on the LHS of an assignment
+// or the receiver of a member access / address-of. We deliberately use
+// dynamic_cast here (instead of an enum tag) because the visitor pattern
+// already handles dispatch — these checks are just structural predicates.
+static bool isLvalue(Expression* e) {
+    return dynamic_cast<Identifier*>(e)
+        || dynamic_cast<Call*>(e)
+        || dynamic_cast<MemberAccess*>(e);
+}
+
+static bool isAddressable(Expression* e) {
+    return dynamic_cast<Identifier*>(e) || dynamic_cast<MemberAccess*>(e);
+}
+
+// "Side-effecting" expressions are ones whose value is allowed to be ignored
+// when used as a statement — calls, member-accesses (might be properties),
+// and assignments. Everything else triggers an "unused expression" warning.
+static bool isSideEffecting(Expression* e) {
+    return dynamic_cast<Call*>(e)
+        || dynamic_cast<MemberAccess*>(e)
+        || dynamic_cast<Assignment*>(e);
+}
+
+
 // -- Symbol lookup -----------------------------------------------------------
 
 bool SemanticAnalyzer::findNameGlobal(const Token& nameToken) {
@@ -189,7 +213,7 @@ bool SemanticAnalyzer::compareArgsToParams(const std::vector<TypePtr>& paramList
 }
 
 void SemanticAnalyzer::visit(Call& node) {
-    std::shared_ptr<FunctionType> funcType;
+    std::shared_ptr<const FunctionType> funcType;
 
     int32_t index = findNameLocal(node.funcToken);
     if (index > -1) {
@@ -200,7 +224,7 @@ void SemanticAnalyzer::visit(Call& node) {
             m_ok = false;
             return;
         }
-        funcType = std::static_pointer_cast<FunctionType>(symbol.type);
+        funcType = std::static_pointer_cast<const FunctionType>(symbol.type);
         node.funcToken.value = symbol.name;
         node.expressionType = funcType->returnType;
     } else if (!findNameGlobal(node.funcToken)) {
@@ -216,7 +240,7 @@ void SemanticAnalyzer::visit(Call& node) {
             m_ok = false;
             return;
         }
-        funcType = std::static_pointer_cast<FunctionType>(symbol.type);
+        funcType = std::static_pointer_cast<const FunctionType>(symbol.type);
         node.expressionType = funcType->returnType;
     }
 
@@ -232,16 +256,11 @@ void SemanticAnalyzer::visit(Call& node) {
 
 void SemanticAnalyzer::visit(Assignment& node) {
     // Only lvalues are assignable.
-    switch (node.left->getType()) {
-        case NodeType::Call:
-        case NodeType::Identifier:
-        case NodeType::MemberAccess:
-            break;
-        default:
-            m_errorHandler->reportError(
-                {"Cannot assign to non-lvalues", node.operatorToken.position});
-            m_ok = false;
-            return;
+    if (!isLvalue(node.left.get())) {
+        m_errorHandler->reportError(
+            {"Cannot assign to non-lvalues", node.operatorToken.position});
+        m_ok = false;
+        return;
     }
 
     analyze(node.left);
@@ -261,29 +280,19 @@ void SemanticAnalyzer::visit(Assignment& node) {
 }
 
 void SemanticAnalyzer::visit(MemberAccess& node) {
-    switch (node.left->getType()) {
-        case NodeType::Call:
-        case NodeType::Identifier:
-        case NodeType::MemberAccess:
-            break;
-        default:
-            m_errorHandler->reportError(
-                {"Cannot access member of non-lvalues", node.operatorToken.position});
-            m_ok = false;
-            return;
+    if (!isLvalue(node.left.get())) {
+        m_errorHandler->reportError(
+            {"Cannot access member of non-lvalues", node.operatorToken.position});
+        m_ok = false;
+        return;
     }
-    switch (node.right->getType()) {
-        case NodeType::Call:
-        case NodeType::Identifier:
-        case NodeType::MemberAccess:
-            break;
-        default:
-            m_errorHandler->reportError(
-                {"Non-lvalues are not valid members of lvalues", node.operatorToken.position});
-            m_ok = false;
-            return;
+    if (!isLvalue(node.right.get())) {
+        m_errorHandler->reportError(
+            {"Non-lvalues are not valid members of lvalues", node.operatorToken.position});
+        m_ok = false;
+        return;
     }
-    if (node.left->getType() == NodeType::Identifier) {
+    if (dynamic_cast<Identifier*>(node.left.get())) {
         analyze(node.left);
     }
 }
@@ -306,7 +315,7 @@ void SemanticAnalyzer::visit(DereferenceExpression& node) {
         m_ok = false;
         return;
     }
-    node.expressionType = std::static_pointer_cast<PointerType>(node.expr->expressionType)
+    node.expressionType = std::static_pointer_cast<const PointerType>(node.expr->expressionType)
                               ->pointingType;
 }
 
@@ -315,8 +324,7 @@ void SemanticAnalyzer::visit(AddressOfExpression& node) {
     if (!m_ok) return;
 
     node.expressionType = std::make_shared<PointerType>(node.expr->expressionType);
-    if (node.expr->getType() != NodeType::Identifier
-        && node.expr->getType() != NodeType::MemberAccess) {
+    if (!isAddressable(node.expr.get())) {
         m_errorHandler->reportError({"Cannot get address of a non-lvalue", {}});
         m_ok = false;
     }
@@ -378,13 +386,8 @@ void SemanticAnalyzer::visit(ContinueStatement& node) {
 }
 
 void SemanticAnalyzer::visit(ExpressionStatement& node) {
-    switch (node.expression->getType()) {
-        case NodeType::Call:
-        case NodeType::MemberAccess:
-        case NodeType::Assignment:
-            break;
-        default:
-            m_errorHandler->reportWarning({"Unused expression", node.expressionPos});
+    if (!isSideEffecting(node.expression.get())) {
+        m_errorHandler->reportWarning({"Unused expression", node.expressionPos});
     }
     analyze(node.expression);
 }
@@ -497,7 +500,7 @@ void SemanticAnalyzer::visit(VariableDefinition& node) {
         if (!m_ok) return;
 
         if (node.variableType->typeInfo() == TypeInfo::Fundamental
-            && std::static_pointer_cast<FundamentalType>(node.variableType)->type
+            && std::static_pointer_cast<const FundamentalType>(node.variableType)->type
                    == BasicType::None) {
             node.variableType = node.initializer->expressionType;
         } else if (!tryCast(&node.initializer, node.variableType)) {

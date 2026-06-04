@@ -21,8 +21,8 @@ namespace Fractal {
 
 		writeLine("section .text");
 
-		for (auto instruction : *instructions)
-			emitInstruction(instruction);
+		for (const auto& instruction : *instructions)
+			emitInstruction(instruction.get());
 
 		return m_output;
 	}
@@ -41,7 +41,7 @@ namespace Fractal {
 		}
 	}
 
-	void IntelCodeEmission::emitInstruction(InstructionPtr instruction) {
+	void IntelCodeEmission::emitInstruction(const Instruction* instruction) {
 		switch (instruction->getType()) {
 		case InstructionType::FunctionDefinition: emitFunctionDefinition(instruction); return;
 		case InstructionType::Move: emitMove(instruction); return;
@@ -63,8 +63,8 @@ namespace Fractal {
 		}
 	}
 
-	void IntelCodeEmission::emitFunctionDefinition(InstructionPtr instruction) {
-		std::shared_ptr<FunctionDefInstruction> functionDefinition = static_pointer_cast<FunctionDefInstruction>(instruction);
+	void IntelCodeEmission::emitFunctionDefinition(const Instruction* instruction) {
+		auto* functionDefinition = static_cast<const FunctionDefInstruction*>(instruction);
 		
 		if (m_platform == Platform::Mac) {
 			writeLine("global _" + functionDefinition->name);
@@ -77,8 +77,8 @@ namespace Fractal {
 
 		emitFunctionPrologue(functionDefinition->stackAlloc);
 
-		for (auto instruction : functionDefinition->instructions)
-			emitInstruction(instruction);
+		for (const auto& instruction : functionDefinition->instructions)
+			emitInstruction(instruction.get());
 	}
 
 	void IntelCodeEmission::emitFunctionPrologue(uint64_t stackAlloc) {
@@ -92,39 +92,39 @@ namespace Fractal {
 		writeILine("pop rbp");
 	}
 
-	void IntelCodeEmission::emitMove(InstructionPtr instruction) {
-		std::shared_ptr<MoveInstruction> moveInstruction = static_pointer_cast<MoveInstruction>(instruction);
+	void IntelCodeEmission::emitMove(const Instruction* instruction) {
+		auto* moveInstruction = static_cast<const MoveInstruction*>(instruction);
 
 		writeILine((moveInstruction->signExtend ? "movsx " : "mov ")
 				+ getOperandStr(moveInstruction->destination, moveInstruction->destSize) + ", " + getOperandStr(moveInstruction->source, moveInstruction->srcSize));
 	}
 
-	void IntelCodeEmission::emitNegation(InstructionPtr instruction) {
-		std::shared_ptr<NegateInstruction> negInstruction = static_pointer_cast<NegateInstruction>(instruction);
+	void IntelCodeEmission::emitNegation(const Instruction* instruction) {
+		auto* negInstruction = static_cast<const NegateInstruction*>(instruction);
 
 		writeILine("neg " + getOperandStr(negInstruction->source));
 	}
 
-	void IntelCodeEmission::emitBitwiseNot(InstructionPtr instruction) {
-		std::shared_ptr<BitwiseNotInstruction> notInstruction = static_pointer_cast<BitwiseNotInstruction>(instruction);
+	void IntelCodeEmission::emitBitwiseNot(const Instruction* instruction) {
+		auto* notInstruction = static_cast<const BitwiseNotInstruction*>(instruction);
 
 		writeILine("not " + getOperandStr(notInstruction->source));
 	}
 
-	void IntelCodeEmission::emitAdd(InstructionPtr instruction) {
-		std::shared_ptr<AddInstruction> addInstruction = static_pointer_cast<AddInstruction>(instruction);
+	void IntelCodeEmission::emitAdd(const Instruction* instruction) {
+		auto* addInstruction = static_cast<const AddInstruction*>(instruction);
 
 		writeILine("add " + getOperandStr(addInstruction->destination) + ", " + getOperandStr(addInstruction->other));
 	}
 
-	void IntelCodeEmission::emitSub(InstructionPtr instruction) {
-		std::shared_ptr<SubtractInstruction> subInstruction = static_pointer_cast<SubtractInstruction>(instruction);
+	void IntelCodeEmission::emitSub(const Instruction* instruction) {
+		auto* subInstruction = static_cast<const SubtractInstruction*>(instruction);
 
 		writeILine("sub " + getOperandStr(subInstruction->destination) + ", " + getOperandStr(subInstruction->other));
 	}
 
-	void IntelCodeEmission::emitMul(InstructionPtr instruction) {
-		std::shared_ptr<MultiplyInstruction> mulInstruction = static_pointer_cast<MultiplyInstruction>(instruction);
+	void IntelCodeEmission::emitMul(const Instruction* instruction) {
+		auto* mulInstruction = static_cast<const MultiplyInstruction*>(instruction);
 
 		writeILine("imul " + getOperandStr(mulInstruction->destination) + ", " + getOperandStr(mulInstruction->other));
 	}
@@ -133,44 +133,44 @@ namespace Fractal {
 		writeILine("cdq");
 	}
 
-	void IntelCodeEmission::emitIdiv(InstructionPtr instruction) {
-		std::shared_ptr<DivInstruction> divInstruction = static_pointer_cast<DivInstruction>(instruction);
+	void IntelCodeEmission::emitIdiv(const Instruction* instruction) {
+		auto* divInstruction = static_cast<const DivInstruction*>(instruction);
 
 		writeILine("idiv " + getOperandStr(divInstruction->destination));
 	}
 
-	void IntelCodeEmission::emitCmp(InstructionPtr instruction) {
-		std::shared_ptr<CompareInstruction> cmpInstruction = static_pointer_cast<CompareInstruction>(instruction);
+	void IntelCodeEmission::emitCmp(const Instruction* instruction) {
+		auto* cmpInstruction = static_cast<const CompareInstruction*>(instruction);
 
 		writeILine("cmp " + getOperandStr(cmpInstruction->left) + ", " + getOperandStr(cmpInstruction->right));
 	}
 
-	void IntelCodeEmission::emitSet(InstructionPtr instruction) {
-		std::shared_ptr<SetInstruction> setInstruction = static_pointer_cast<SetInstruction>(instruction);
+	void IntelCodeEmission::emitSet(const Instruction* instruction) {
+		auto* setInstruction = static_cast<const SetInstruction*>(instruction);
 
 		writeILine("set" + getComparisonType(setInstruction->type) + " " + getOperandStr(setInstruction->destination));
 	}
 
-	void IntelCodeEmission::emitJmp(InstructionPtr instruction) {
-		std::shared_ptr<JumpInstruction> jmpInstruction = static_pointer_cast<JumpInstruction>(instruction);
+	void IntelCodeEmission::emitJmp(const Instruction* instruction) {
+		auto* jmpInstruction = static_cast<const JumpInstruction*>(instruction);
 
 		writeILine("j" + getComparisonType(jmpInstruction->type) + " " + jmpInstruction->label);
 	}
 
-	void IntelCodeEmission::emitLabel(InstructionPtr instruction) {
-		std::shared_ptr<Label> label = static_pointer_cast<Label>(instruction);
+	void IntelCodeEmission::emitLabel(const Instruction* instruction) {
+		auto* label = static_cast<const Label*>(instruction);
 
 		writeLine(label->name + ":");
 	}
 
-	void IntelCodeEmission::emitCall(InstructionPtr instruction) {
-		std::shared_ptr<CallInstruction> call = static_pointer_cast<CallInstruction>(instruction);
+	void IntelCodeEmission::emitCall(const Instruction* instruction) {
+		auto* call = static_cast<const CallInstruction*>(instruction);
 
 		writeILine("call " + call->func);
 	}
 
-	void IntelCodeEmission::emitPush(InstructionPtr instruction) {
-		std::shared_ptr<PushInstruction> push = static_pointer_cast<PushInstruction>(instruction);
+	void IntelCodeEmission::emitPush(const Instruction* instruction) {
+		auto* push = static_cast<const PushInstruction*>(instruction);
 
 		writeILine("push " + getOperandStr(push->src));
 	}
@@ -180,7 +180,7 @@ namespace Fractal {
 	}
 
 	std::string IntelCodeEmission::getRegister(OperandPtr operand, Size externalSize) {
-		std::shared_ptr<RegisterOperand> reg = static_pointer_cast<RegisterOperand>(operand);
+		auto* reg = static_cast<const RegisterOperand*>(operand.get());
 		Size s = ((bool)externalSize ? externalSize : reg->size);
 		std::string toRet = "";
 		if ((uint8_t)reg->reg < 8) {
@@ -217,8 +217,8 @@ namespace Fractal {
 		if (!operand) return "";
 		switch (operand->getType())
 		{
-		case OperandType::IntegerConstant: return std::to_string(static_pointer_cast<IntegerConstant>(operand)->integer);
-		case OperandType::Register: return getRegister(static_pointer_cast<RegisterOperand>(operand), externalSize);
+		case OperandType::IntegerConstant: return std::to_string(static_cast<const IntegerConstant*>(operand.get())->integer);
+		case OperandType::Register: return getRegister(operand, externalSize);
 		case OperandType::Temp: return getTemp(operand, externalSize);
 		default:
 			return "";
@@ -236,7 +236,7 @@ namespace Fractal {
 	}
 
 	std::string IntelCodeEmission::getTemp(OperandPtr operand, Size externalSize) {
-		std::shared_ptr<TempOperand> temp = static_pointer_cast<TempOperand>(operand);
+		auto* temp = static_cast<const TempOperand*>(operand.get());
 		std::string sign = temp->stackOffest < 0 ? "+" : "-";
 		return getSizeMemory((bool)externalSize ? externalSize : temp->size) + " [rbp " + sign + " " + std::to_string(abs(temp->stackOffest)) + "]";
 	}

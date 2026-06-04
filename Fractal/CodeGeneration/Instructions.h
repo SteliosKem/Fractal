@@ -117,17 +117,20 @@ namespace Fractal {
 		virtual void print() const {}
 	};
 
-	using InstructionPtr = std::shared_ptr<Instruction>;
+	// Each instruction lives in exactly one InstructionList — the validation
+	// pass moves them between lists without ever aliasing. unique_ptr makes
+	// that single-ownership explicit and prevents accidental aliasing bugs.
+	using InstructionPtr = std::unique_ptr<Instruction>;
 	using InstructionList = std::vector<InstructionPtr>;
 
 	class FunctionDefInstruction : public Instruction {
 	public:
-		FunctionDefInstruction(const std::string& name, const InstructionList& instructions)
-			: name{ name }, instructions{ instructions } {}
+		FunctionDefInstruction(const std::string& name, InstructionList instructions)
+			: name{ name }, instructions{ std::move(instructions) } {}
 		INSTR_TYPE(FunctionDefinition)
 		virtual void print() const override {
 			std::cout << "Function " << name << " stack alloc " << stackAlloc << ":\n";
-			for (auto instruction : instructions) {
+			for (const auto& instruction : instructions) {
 				std::cout << "    ";
 				instruction->print();
 			}

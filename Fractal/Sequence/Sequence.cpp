@@ -124,7 +124,7 @@ static bool compilePipeline(const std::filesystem::path &sourceFile,
     const auto &instructions = codeGenerator.generate(parser.program(), platform);
     if (options.verbose) {
         std::cout << "Analysis Completed\n";
-        for (auto instruction : instructions) instruction->print();
+        for (const auto& instruction : instructions) instruction->print();
         std::cout << '\n';
     }
 

@@ -64,7 +64,7 @@ TEST_CASE("parser: function definition inside <define> block") {
     CHECK(r.ok);
     REQUIRE_EQ(r.program.definitions.size(), size_t{1});
     auto &def = r.program.definitions[0];
-    CHECK_EQ((int)def->getType(), (int)Fractal::NodeType::FunctionDefinition);
+    CHECK(dynamic_cast<Fractal::FunctionDefinition*>(def.get()) != nullptr);
     auto fn = as<Fractal::FunctionDefinition>(def);
     CHECK_EQ(fn->nameToken.value, std::string("foo"));
     CHECK_EQ(fn->parameterList.size(), size_t{0});
@@ -84,8 +84,7 @@ TEST_CASE("parser: top-level statements outside <define> are program statements"
     auto r = parse("let x: i32 = 5;", "top_let");
     CHECK(r.ok);
     REQUIRE_EQ(r.program.statements.size(), size_t{1});
-    CHECK_EQ((int)r.program.statements[0]->getType(),
-             (int)Fractal::NodeType::VariableDefinition);
+    CHECK(dynamic_cast<Fractal::VariableDefinition*>(r.program.statements[0].get()) != nullptr);
 }
 
 TEST_CASE("parser: const variable") {
@@ -103,11 +102,11 @@ TEST_CASE("parser: binary precedence — a + b * c groups as a + (b * c)") {
     REQUIRE_EQ(r.program.statements.size(), size_t{1});
     auto var = as<Fractal::VariableDefinition>(r.program.statements[0]);
     REQUIRE(var->initializer != nullptr);
-    REQUIRE_EQ((int)var->initializer->getType(), (int)Fractal::NodeType::BinaryOperation);
+    REQUIRE(dynamic_cast<Fractal::BinaryOperation*>(var->initializer.get()) != nullptr);
     auto top = as<Fractal::BinaryOperation>(var->initializer);
     // Top operator is + (lower precedence), right side is the * subtree.
     CHECK_EQ((int)top->operatorToken.type, (int)Fractal::PLUS);
-    REQUIRE_EQ((int)top->right->getType(), (int)Fractal::NodeType::BinaryOperation);
+    REQUIRE(dynamic_cast<Fractal::BinaryOperation*>(top->right.get()) != nullptr);
     auto rhs = as<Fractal::BinaryOperation>(top->right);
     CHECK_EQ((int)rhs->operatorToken.type, (int)Fractal::STAR);
 }
@@ -117,7 +116,7 @@ TEST_CASE("parser: function call expression") {
     CHECK(r.ok);
     REQUIRE_EQ(r.program.statements.size(), size_t{1});
     auto stmt = as<Fractal::ExpressionStatement>(r.program.statements[0]);
-    REQUIRE_EQ((int)stmt->expression->getType(), (int)Fractal::NodeType::Call);
+    REQUIRE(dynamic_cast<Fractal::Call*>(stmt->expression.get()) != nullptr);
     auto call = as<Fractal::Call>(stmt->expression);
     CHECK_EQ(call->funcToken.value, std::string("foo"));
     CHECK_EQ(call->argumentList.size(), size_t{3});
@@ -127,7 +126,7 @@ TEST_CASE("parser: if/else statement") {
     auto r = parse("if 1 == 1 => { let x: i32 = 1; } else { let y: i32 = 2; }", "if_else");
     CHECK(r.ok);
     REQUIRE_EQ(r.program.statements.size(), size_t{1});
-    REQUIRE_EQ((int)r.program.statements[0]->getType(), (int)Fractal::NodeType::IfStatement);
+    REQUIRE(dynamic_cast<Fractal::IfStatement*>(r.program.statements[0].get()) != nullptr);
     auto ifs = as<Fractal::IfStatement>(r.program.statements[0]);
     CHECK(ifs->condition != nullptr);
     CHECK(ifs->ifBody != nullptr);
@@ -138,7 +137,7 @@ TEST_CASE("parser: while statement") {
     auto r = parse("while 1 < 5 => { break; }", "while");
     CHECK(r.ok);
     REQUIRE_EQ(r.program.statements.size(), size_t{1});
-    CHECK_EQ((int)r.program.statements[0]->getType(), (int)Fractal::NodeType::WhileStatement);
+    CHECK(dynamic_cast<Fractal::WhileStatement*>(r.program.statements[0].get()) != nullptr);
 }
 
 TEST_CASE("parser: missing semicolon reports an error") {

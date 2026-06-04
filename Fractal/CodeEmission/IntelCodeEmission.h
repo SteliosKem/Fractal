@@ -17,24 +17,24 @@ namespace Fractal {
 		const std::string& output() const override;
 	private:
 		// -- FROM INSTRUCTION LIST --
-		void emitInstruction(InstructionPtr instruction);
-		void emitFunctionDefinition(InstructionPtr instruction);
+		void emitInstruction(const Instruction* instruction);
+		void emitFunctionDefinition(const Instruction* instruction);
 		void emitFunctionPrologue(uint64_t stackAlloc);
 		void emitFunctionEpilogue();
-		void emitMove(InstructionPtr instruction);
-		void emitNegation(InstructionPtr instruction);
-		void emitBitwiseNot(InstructionPtr instruction);
-		void emitAdd(InstructionPtr instruction);
-		void emitSub(InstructionPtr instruction);
-		void emitMul(InstructionPtr instruction);
+		void emitMove(const Instruction* instruction);
+		void emitNegation(const Instruction* instruction);
+		void emitBitwiseNot(const Instruction* instruction);
+		void emitAdd(const Instruction* instruction);
+		void emitSub(const Instruction* instruction);
+		void emitMul(const Instruction* instruction);
 		void emitCdq();
-		void emitCmp(InstructionPtr instruction);
-		void emitSet(InstructionPtr instruction);
-		void emitIdiv(InstructionPtr instruction);
-		void emitJmp(InstructionPtr instruction);
-		void emitLabel(InstructionPtr instruction);
-		void emitCall(InstructionPtr instruction);
-		void emitPush(InstructionPtr instruction);
+		void emitCmp(const Instruction* instruction);
+		void emitSet(const Instruction* instruction);
+		void emitIdiv(const Instruction* instruction);
+		void emitJmp(const Instruction* instruction);
+		void emitLabel(const Instruction* instruction);
+		void emitCall(const Instruction* instruction);
+		void emitPush(const Instruction* instruction);
 		void emitReturn();
 
 		std::string getOperandStr(OperandPtr operand, Size externalSize = Size::None);

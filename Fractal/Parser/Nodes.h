@@ -15,49 +15,12 @@ namespace Fractal {
 #define EXPR_ACCEPT() void accept(ExpressionVisitor& v) override { v.visit(*this); }
 #define STMT_ACCEPT() void accept(StatementVisitor& v) override { v.visit(*this); }
 
-	enum class NodeType {
-		Expression,
-		IntegerLiteral,
-		StringLiteral,
-		CharacterLiteral,
-		FloatLiteral,
-		ArrayList,
-		BinaryOperation,
-		UnaryOperation,
-		Identifier,
-		Call,
-		Assignment,
-		MemberAccess,
-		Cast,
-		AddressOf,
-		Dereference,
-
-		Statement,
-		NullStatement,
-		CompoundStatement,
-		ExpressionStatement,
-		ReturnStatement,
-		IfStatement,
-		LoopStatement,
-		WhileStatement,
-		BreakStatement,
-		ContinueStatement,
-
-		Definition,
-		FunctionDefinition,
-		VariableDefinition,
-		ClassDefinition,
-		DecoratedDefinition,
-	};
-
 	enum class Decorator {
 		None,
 		External,
 		Internal,
 	};
 
-#define _TYPE(x) virtual NodeType getType() const { return x; }
-#define TYPE(x) virtual NodeType getType() const override { return x; }
 
 	// Base Classes
 	class Expression {
@@ -66,7 +29,6 @@ namespace Fractal {
 		virtual void accept(ExpressionVisitor& v) = 0;
 		virtual void print() const {}
 		TypePtr expressionType;
-		_TYPE(NodeType::Expression)
 	};
 
 	class Statement {
@@ -74,7 +36,6 @@ namespace Fractal {
 		virtual ~Statement() = default;
 		virtual void accept(StatementVisitor& v) = 0;
 		virtual void print(uint8_t indent = 0) const {}
-		_TYPE(NodeType::Statement)
 	};
 
 	// Derives from Statement in order to be able to create variables in local scope
@@ -83,7 +44,6 @@ namespace Fractal {
 		virtual ~Definition() = default;
 		virtual void print(uint8_t indent = 0) const override {}
 		virtual std::string getName() const { return ""; };
-		TYPE(NodeType::Definition)
 	};
 
 	// AST nodes are uniquely owned: a parent expression owns its children, a
@@ -105,7 +65,6 @@ namespace Fractal {
 		IntegerLiteral(int64_t value, const Position& position) : value{ value }, position{ position } {}
 		EXPR_ACCEPT()
 		void print() const override { std::cout << value; }
-		TYPE(NodeType::IntegerLiteral)
 	public:
 		int64_t value;
 		Size size{Size::DWord};
@@ -117,7 +76,6 @@ namespace Fractal {
 		FloatLiteral(double value, const Position& position) : value{ value }, position{ position } {}
 		EXPR_ACCEPT()
 		void print() const override { std::cout << value; }
-		TYPE(NodeType::FloatLiteral)
 	public:
 		double value;
 		Size size{Size::DWord};
@@ -129,7 +87,6 @@ namespace Fractal {
 		StringLiteral(const std::string& value, const Position& position) : value{ value }, position{ position } {}
 		EXPR_ACCEPT()
 		void print() const override { std::cout << '"' << value << '"'; }
-		TYPE(NodeType::StringLiteral)
 	public:
 		std::string value;
 		Position position;
@@ -140,7 +97,6 @@ namespace Fractal {
 		CharacterLiteral(std::string value, const Position& position) : value{ value }, position{ position } {}
 		EXPR_ACCEPT()
 		void print() const override { std::cout << "'" << value << "'"; }
-		TYPE(NodeType::CharacterLiteral)
 	public:
 		std::string value;
 		Position position;
@@ -163,7 +119,6 @@ namespace Fractal {
 			}
 			std::cout << ']';
 		}
-		TYPE(NodeType::ArrayList)
 	public:
 		std::vector<ArrayElement> elements;
 		TypePtr elementType{ nullptr };
@@ -181,7 +136,6 @@ namespace Fractal {
 			std::cout << ')';
 		}
 
-		TYPE(NodeType::UnaryOperation)
 	public:
 		ExpressionPtr expression;
 		Token operatorToken;
@@ -201,7 +155,6 @@ namespace Fractal {
 			std::cout << ')';
 		}
 
-		TYPE(NodeType::BinaryOperation)
 	public:
 		ExpressionPtr left;
 		ExpressionPtr right;
@@ -217,7 +170,6 @@ namespace Fractal {
 			std::cout << "name '" << idToken.value << "'";
 		}
 
-		TYPE(NodeType::Identifier)
 	public:
 		Token idToken;
 	};
@@ -236,7 +188,6 @@ namespace Fractal {
 			std::cout << ')';
 		}
 
-		TYPE(NodeType::Assignment)
 	public:
 		ExpressionPtr left;
 		ExpressionPtr right;
@@ -257,7 +208,6 @@ namespace Fractal {
 			std::cout << ')';
 		}
 
-		TYPE(NodeType::MemberAccess)
 	public:
 		ExpressionPtr left;
 		ExpressionPtr right;
@@ -273,7 +223,6 @@ namespace Fractal {
 			expr->print();
 			std::cout << " to "<< target->typeName();
 		}
-		TYPE(NodeType::Cast);
 	public:
 		ExpressionPtr expr;
 		TypePtr target;
@@ -287,7 +236,6 @@ namespace Fractal {
 			std::cout << "Dereference ";
 			expr->print();
 		}
-		TYPE(NodeType::Dereference);
 	public:
 		ExpressionPtr expr;
 	};
@@ -300,7 +248,6 @@ namespace Fractal {
 			std::cout << "Address of ";
 			expr->print();
 		}
-		TYPE(NodeType::AddressOf);
 	public:
 		ExpressionPtr expr;
 	};
@@ -339,7 +286,6 @@ namespace Fractal {
 			std::cout << ")";
 		}
 
-		TYPE(NodeType::Call)
 	public:
 		Token funcToken;
 		ArgumentList argumentList;
@@ -356,7 +302,6 @@ namespace Fractal {
 			(void)indent;
 			std::cout << "->\n";
 		}
-		TYPE(NodeType::NullStatement)
 	};
 
 	class CompoundStatement : public Statement {
@@ -370,7 +315,6 @@ namespace Fractal {
 				statements[i]->print();
 			std::cout << "}\n";
 		}
-		TYPE(NodeType::CompoundStatement)
 	public:
 		StatementList statements;
 	};
@@ -391,7 +335,6 @@ namespace Fractal {
 				elseBody->print();
 			}
 		}
-		TYPE(NodeType::IfStatement)
 	public:
 		ExpressionPtr condition;
 		StatementPtr ifBody;
@@ -407,7 +350,6 @@ namespace Fractal {
 			std::cout << "->  Loop ";
 			if (loopBody) loopBody->print();
 		}
-		TYPE(NodeType::LoopStatement)
 	public:
 		StatementPtr loopBody;
 	};
@@ -424,7 +366,6 @@ namespace Fractal {
 			std::cout << " do ";
 			if (loopBody) loopBody->print();
 		}
-		TYPE(NodeType::WhileStatement)
 	public:
 		ExpressionPtr condition;
 		StatementPtr loopBody;
@@ -438,7 +379,6 @@ namespace Fractal {
 			(void)indent;
 			std::cout << "->  Break\n";
 		}
-		TYPE(NodeType::BreakStatement)
 	public:
 		Token token;
 		uint8_t loopIndex{ 0 };
@@ -452,7 +392,6 @@ namespace Fractal {
 			(void)indent;
 			std::cout << "->  Continue\n";
 		}
-		TYPE(NodeType::ContinueStatement)
 	public:
 		Token token;
 		uint8_t loopIndex{ 0 };
@@ -469,7 +408,6 @@ namespace Fractal {
 			if (expression) expression->print();
 			std::cout << '\n';
 		}
-		TYPE(NodeType::ExpressionStatement)
 	public:
 		ExpressionPtr expression;
 		Position expressionPos;
@@ -486,7 +424,6 @@ namespace Fractal {
 			if (expression) expression->print();
 			std::cout << '\n';
 		}
-		TYPE(NodeType::ReturnStatement)
 	public:
 		ExpressionPtr expression;
 		Token token;
@@ -532,7 +469,6 @@ namespace Fractal {
 			std::cout << "!=> \n";
 		}
 		std::string getName() const override { return nameToken.value; }
-		TYPE(NodeType::FunctionDefinition)
 	public:
 		Token nameToken;
 		TypePtr returnType;
@@ -552,7 +488,6 @@ namespace Fractal {
 			std::cout << '\n';
 		}
 		std::string getName() const override { return nameToken.value; }
-		TYPE(NodeType::VariableDefinition)
 	public:
 		Token nameToken;
 		TypePtr variableType;
@@ -582,7 +517,6 @@ namespace Fractal {
 			}
 			std::cout << "}\n";
 		}
-		TYPE(NodeType::ClassDefinition)
 	public:
 		std::string className;
 		MemberList definitions;
@@ -598,7 +532,6 @@ namespace Fractal {
 			definition->print();
 		}
 		std::string getName() const override { return definition->getName(); }
-		TYPE(NodeType::DecoratedDefinition)
 	public:
 		Decorator decorator;
 		DefinitionPtr definition;

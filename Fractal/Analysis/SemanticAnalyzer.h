@@ -91,7 +91,7 @@ namespace Fractal {
     private:
         ProgramFile* m_program{ nullptr };
         SymbolTable m_globalTable{};
-        std::shared_ptr<FunctionType> m_currentFunction{ nullptr };
+        std::shared_ptr<const FunctionType> m_currentFunction{ nullptr };
         std::vector<SymbolTable> m_localStack{};
 
         std::vector<uint8_t> m_loopStack{};

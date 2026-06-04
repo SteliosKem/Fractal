@@ -71,7 +71,7 @@ private:
     OperandPtr generate(Expression* expression);
 
     // Emit a single instruction into the active target list.
-    void emit(InstructionPtr instr) { m_currentList->push_back(instr); }
+    void emit(InstructionPtr instr) { m_currentList->push_back(std::move(instr)); }
 
     // -- Helpers grouped by node kind (called from visit()) -----------------
     OperandPtr arithmetic(BinaryOperation& node);
@@ -100,7 +100,7 @@ private:
 
     // -- Validation -- second pass over emitted instructions ---------------
     void validateInstructions(InstructionList* instructions);
-    void validateFunction(InstructionPtr instruction);
+    void validateFunction(Instruction* instruction);
     void validateMove(InstructionList* instructions, size_t i);
     void validateAdd(InstructionList* instructions, size_t i);
     void validateSub(InstructionList* instructions, size_t i);

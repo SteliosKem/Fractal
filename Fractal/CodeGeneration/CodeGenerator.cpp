@@ -12,7 +12,7 @@ namespace Fractal {
 static Size getTypeSize(TypePtr type) {
     switch (type->typeInfo()) {
         case TypeInfo::Fundamental: {
-            auto fundamentalType = std::static_pointer_cast<FundamentalType>(type);
+            auto fundamentalType = std::static_pointer_cast<const FundamentalType>(type);
             switch (fundamentalType->type) {
                 case BasicType::I32:
                 case BasicType::U32:
@@ -53,7 +53,7 @@ const InstructionList& CodeGenerator::generate(const ProgramFile& program, Platf
     // m_program is borrowed for the duration of this call only; the AST is
     // owned by the caller via unique_ptr, so we keep a non-owning pointer.
     m_program = const_cast<ProgramFile*>(&program);
-    m_instructions = {};
+    m_instructions.clear();
     m_platform = platform;
     m_currentList = &m_instructions;
 
@@ -83,7 +83,7 @@ OperandPtr CodeGenerator::generate(Expression* expression) {
 
 void CodeGenerator::visit(FunctionDefinition& node) {
     m_currentStackIndex = 0;
-    auto funcInstr = std::make_shared<FunctionDefInstruction>(node.nameToken.value,
+    auto funcInstr = std::make_unique<FunctionDefInstruction>(node.nameToken.value,
                                                               InstructionList{});
 
     std::vector<Register> argumentRegisters = (m_platform == Platform::Win)
@@ -121,10 +121,10 @@ void CodeGenerator::visit(FunctionDefinition& node) {
 
     // Implicit `return 0` if control flow falls off the end.
     emit(move(intConst(0), reg(Register::AX, Size::DWord)));
-    emit(std::make_shared<ReturnInstruction>());
+    emit(std::make_unique<ReturnInstruction>());
 
     m_currentList = prev;
-    emit(funcInstr);
+    emit(std::move(funcInstr));
 }
 
 void CodeGenerator::visit(VariableDefinition& node) {
@@ -164,7 +164,7 @@ void CodeGenerator::visit(ExpressionStatement& node) {
 void CodeGenerator::visit(ReturnStatement& node) {
     OperandPtr result = generate(node.expression.get());
     if (result) emit(move(result, reg(Register::AX)));
-    emit(std::make_shared<ReturnInstruction>());
+    emit(std::make_unique<ReturnInstruction>());
 }
 
 void CodeGenerator::visit(IfStatement& node) {
@@ -379,8 +379,8 @@ OperandPtr CodeGenerator::idiv(BinaryOperation& node) {
     if (rightOp) emit(move(rightOp, temp));
     OperandPtr leftOp = generate(node.left.get());
     if (leftOp) emit(move(leftOp, reg(Register::AX)));
-    emit(std::make_shared<CdqInstruction>());
-    emit(std::make_shared<DivInstruction>(temp));
+    emit(std::make_unique<CdqInstruction>());
+    emit(std::make_unique<DivInstruction>(temp));
     return reg(Register::AX);
 }
 
@@ -456,50 +456,50 @@ void CodeGenerator::visit(AddressOfExpression& node) {
 // -- Instruction factories --------------------------------------------------
 
 InstructionPtr CodeGenerator::move(OperandPtr source, OperandPtr destination) {
-    auto instr = std::make_shared<MoveInstruction>(source, destination);
+    auto instr = std::make_unique<MoveInstruction>(source, destination);
     if (destination) instr->destSize = destination->getSize();
     if (source)      instr->srcSize  = source->getSize();
     return instr;
 }
 
 InstructionPtr CodeGenerator::negate(OperandPtr source) {
-    return std::make_shared<NegateInstruction>(source);
+    return std::make_unique<NegateInstruction>(source);
 }
 
 InstructionPtr CodeGenerator::bitwiseNot(OperandPtr source) {
-    return std::make_shared<BitwiseNotInstruction>(source);
+    return std::make_unique<BitwiseNotInstruction>(source);
 }
 
 InstructionPtr CodeGenerator::add(OperandPtr destination, OperandPtr other) {
-    return std::make_shared<AddInstruction>(destination, other);
+    return std::make_unique<AddInstruction>(destination, other);
 }
 
 InstructionPtr CodeGenerator::sub(OperandPtr destination, OperandPtr other) {
-    return std::make_shared<SubtractInstruction>(destination, other);
+    return std::make_unique<SubtractInstruction>(destination, other);
 }
 
 InstructionPtr CodeGenerator::mul(OperandPtr destination, OperandPtr other) {
-    return std::make_shared<MultiplyInstruction>(destination, other);
+    return std::make_unique<MultiplyInstruction>(destination, other);
 }
 
 InstructionPtr CodeGenerator::cmp(OperandPtr left, OperandPtr right) {
-    return std::make_shared<CompareInstruction>(left, right);
+    return std::make_unique<CompareInstruction>(left, right);
 }
 
 InstructionPtr CodeGenerator::set(OperandPtr operand, ComparisonType type) {
-    return std::make_shared<SetInstruction>(operand, type);
+    return std::make_unique<SetInstruction>(operand, type);
 }
 
 InstructionPtr CodeGenerator::jmp(const std::string& label, ComparisonType type) {
-    return std::make_shared<JumpInstruction>(label, type);
+    return std::make_unique<JumpInstruction>(label, type);
 }
 
 InstructionPtr CodeGenerator::call(const std::string& func) {
-    return std::make_shared<CallInstruction>(func);
+    return std::make_unique<CallInstruction>(func);
 }
 
 InstructionPtr CodeGenerator::push(OperandPtr src) {
-    return std::make_shared<PushInstruction>(src);
+    return std::make_unique<PushInstruction>(src);
 }
 
 OperandPtr CodeGenerator::reg(Register register_, Size size) {
@@ -511,7 +511,7 @@ OperandPtr CodeGenerator::intConst(int64_t integer) {
 }
 
 InstructionPtr CodeGenerator::label(const std::string& name) {
-    return std::make_shared<Label>(name);
+    return std::make_unique<Label>(name);
 }
 
 int64_t CodeGenerator::allocateStack(Size size) {
@@ -529,7 +529,7 @@ void CodeGenerator::validateInstructions(InstructionList* instructions) {
     for (size_t i = 0; i < instructions->size(); i++) {
         switch ((*instructions)[i]->getType()) {
             case InstructionType::FunctionDefinition:
-                validateFunction((*instructions)[i]);
+                validateFunction((*instructions)[i].get());
                 break;
             case InstructionType::Move:     validateMove(instructions, i); break;
             case InstructionType::Add:      validateAdd(instructions, i); break;
@@ -543,8 +543,8 @@ void CodeGenerator::validateInstructions(InstructionList* instructions) {
     }
 }
 
-void CodeGenerator::validateFunction(InstructionPtr instruction) {
-    auto func = std::static_pointer_cast<FunctionDefInstruction>(instruction);
+void CodeGenerator::validateFunction(Instruction* instruction) {
+    auto* func = static_cast<FunctionDefInstruction*>(instruction);
     validateInstructions(&func->instructions);
 }
 
@@ -573,7 +573,7 @@ void CodeGenerator::validateBinOperands(InstructionList* instructions, size_t i,
 }
 
 void CodeGenerator::validateMove(InstructionList* instructions, size_t i) {
-    auto moveInstruction = std::static_pointer_cast<MoveInstruction>((*instructions)[i]);
+    auto* moveInstruction = static_cast<MoveInstruction*>((*instructions)[i].get());
     if (!moveInstruction->source || !moveInstruction->destination) return;
 
     if (moveInstruction->destSize < moveInstruction->srcSize
@@ -594,17 +594,17 @@ void CodeGenerator::validateMove(InstructionList* instructions, size_t i) {
 }
 
 void CodeGenerator::validateAdd(InstructionList* instructions, size_t i) {
-    auto addInstruction = std::static_pointer_cast<AddInstruction>((*instructions)[i]);
+    auto* addInstruction = static_cast<AddInstruction*>((*instructions)[i].get());
     validateBinOperands(instructions, i, addInstruction->destination, &addInstruction->other);
 }
 
 void CodeGenerator::validateSub(InstructionList* instructions, size_t i) {
-    auto subInstruction = std::static_pointer_cast<SubtractInstruction>((*instructions)[i]);
+    auto* subInstruction = static_cast<SubtractInstruction*>((*instructions)[i].get());
     validateBinOperands(instructions, i, subInstruction->destination, &subInstruction->other);
 }
 
 void CodeGenerator::validateMul(InstructionList* instructions, size_t i) {
-    auto mulInstruction = std::static_pointer_cast<MultiplyInstruction>((*instructions)[i]);
+    auto* mulInstruction = static_cast<MultiplyInstruction*>((*instructions)[i].get());
     if (isTemp(mulInstruction->destination)) {
         OperandPtr scratchReg = reg(Register::R11);
         OperandPtr oldDestination = mulInstruction->destination;
@@ -620,7 +620,7 @@ void CodeGenerator::validateDiv(InstructionList* instructions, size_t i) {
 }
 
 void CodeGenerator::validateCmp(InstructionList* instructions, size_t i) {
-    auto cmpInstruction = std::static_pointer_cast<CompareInstruction>((*instructions)[i]);
+    auto* cmpInstruction = static_cast<CompareInstruction*>((*instructions)[i].get());
     if (cmpInstruction->left->getType() == OperandType::IntegerConstant
         || isTemp(cmpInstruction->left)) {
         OperandPtr scratchReg = reg(Register::AX);
@@ -631,7 +631,7 @@ void CodeGenerator::validateCmp(InstructionList* instructions, size_t i) {
 }
 
 void CodeGenerator::validatePush(InstructionList* instructions, size_t i) {
-    auto pushInstruction = std::static_pointer_cast<PushInstruction>((*instructions)[i]);
+    auto* pushInstruction = static_cast<PushInstruction*>((*instructions)[i].get());
     if (pushInstruction->src->getType() != OperandType::IntegerConstant
         && pushInstruction->src->getSize() != Size::QWord) {
         OperandPtr scratchReg = reg(Register::AX, Size::QWord);
