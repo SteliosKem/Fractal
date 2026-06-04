@@ -10,8 +10,12 @@ namespace Fractal {
 	enum class BasicType {
 		None,
 		Null,
+		I8,
+		I16,
 		I32,
 		I64,
+		U8,
+		U16,
 		U32,
 		U64,
 		F32,
@@ -36,8 +40,12 @@ namespace Fractal {
 		switch (type)
 		{
 		case BasicType::Null: return "Null";
+		case BasicType::I8: return "i8";
+		case BasicType::I16: return "i16";
 		case BasicType::I32: return "i32";
 		case BasicType::I64: return "i64";
+		case BasicType::U8: return "u8";
+		case BasicType::U16: return "u16";
 		case BasicType::U32: return "u32";
 		case BasicType::U64: return "u64";
 		case BasicType::F32: return "f32";

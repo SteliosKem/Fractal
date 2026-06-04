@@ -11,6 +11,10 @@ endif()
 
 project("Fractal")
 
+# Emit compile_commands.json so clangd / VS Code C++ extension can resolve
+# include paths and stop pretending std::string is undefined.
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 option(FRACTAL_BUILD_TESTS "Build the Fractal test suite" ON)
 
 if(FRACTAL_BUILD_TESTS)

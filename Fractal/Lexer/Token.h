@@ -96,12 +96,15 @@ enum TokenType {
   KEY_I16,
   KEY_I32,
   KEY_I64,
+  KEY_U8,
+  KEY_U16,
   KEY_U32,
   KEY_U64,
   KEY_F32,
   KEY_F64,
   KEY_BOOL,
   KEY_NULL,
+  KEY_STR,
   //--
 
   // -- Types --
@@ -160,12 +163,15 @@ const std::unordered_map<std::string, TokenType> KEYWORD_MAP = {
     {"i16", KEY_I16},
     {"i32", KEY_I32},
     {"i64", KEY_I64},
+    {"u8", KEY_U8},
+    {"u16", KEY_U16},
     {"u32", KEY_U32},
     {"u64", KEY_U64},
     {"f32", KEY_F32},
     {"f64", KEY_F64},
     {"bool", KEY_BOOL},
     {"null", KEY_NULL},
+    {"str", KEY_STR},
     {"match", MATCH},
     {"const", CONST},
 };
@@ -183,12 +189,15 @@ inline bool isTypeToken(const Token &token) {
   case KEY_I16:
   case KEY_I32:
   case KEY_I64:
+  case KEY_U8:
+  case KEY_U16:
   case KEY_U32:
   case KEY_U64:
   case KEY_F32:
   case KEY_F64:
   case KEY_BOOL:
   case KEY_NULL:
+  case KEY_STR:
     return true;
   default:
     return false;
@@ -198,11 +207,17 @@ inline bool isTypeToken(const Token &token) {
 inline BasicType getBasicType(const Token &token) {
   switch (token.type) {
   case KEY_I8:
+    return BasicType::I8;
   case KEY_I16:
+    return BasicType::I16;
   case KEY_I32:
     return BasicType::I32;
   case KEY_I64:
     return BasicType::I64;
+  case KEY_U8:
+    return BasicType::U8;
+  case KEY_U16:
+    return BasicType::U16;
   case KEY_U32:
     return BasicType::U32;
   case KEY_U64:
@@ -213,6 +228,8 @@ inline BasicType getBasicType(const Token &token) {
     return BasicType::F64;
   case KEY_BOOL:
     return BasicType::I32;
+  case KEY_STR:
+      return BasicType::String;
   case KEY_NULL:
   default:
     return BasicType::Null;

@@ -248,6 +248,24 @@ namespace Fractal {
 		// Make name from all characters next to eachother in the string
 		while (currentCharacter() != character && currentCharacter() != '\0' && currentCharacter() != '\n') {
 			lastPos = m_currentPosition;
+
+			if (currentCharacter() == '\\') {
+				advance();
+				switch (currentCharacter()) {
+					case 'n':  string += '\n'; break;
+					case 't':  string += '\t'; break;
+					case 'r':  string += '\r'; break;
+					case '\\': string += '\\'; break;
+					case '"':  string += '"';  break;
+					case '\'': string += '\''; break;
+					case '0':  string += '\0'; break;
+					default:
+						m_errorHandler->reportError({"Unknown escape '\\" + std::string(1, currentCharacter()) + "'", lastPos});
+				}
+				advance();
+				continue;
+			}
+
 			string += currentCharacter();
 			advance();
 		}

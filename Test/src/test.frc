@@ -5,10 +5,7 @@ Program execution starts from the first statement outside of the definitions hea
 <define>
 
 fn main(): i32 {
-    let a: i32 = 5;
-    let b: (i32) = &a;
-    @b = 12;
-    return a;
+    let a: str = "Hello\nWorld!";
 }
 
 <!define>
