@@ -61,6 +61,9 @@ namespace Fractal {
         case InstructionType::Move:
             emitMove(instruction);
             return;
+        case InstructionType::Lea:
+            emitLea(instruction);
+            return;
         case InstructionType::Negate:
             emitNegation(instruction);
             return;
@@ -139,6 +142,16 @@ namespace Fractal {
         writeILine((moveInstruction->signExtend ? "movsx " : "mov ") +
                    getOperandStr(moveInstruction->destination, moveInstruction->destSize) + ", " +
                    getOperandStr(moveInstruction->source, moveInstruction->srcSize));
+    }
+
+    void IntelCodeEmission::emitLea(const Instruction* instruction) {
+        auto* leaInstruction = static_cast<const LeaInstruction*>(instruction);
+
+        // `lea reg, [mem]` — register form is QWord on x86_64 (we're loading
+        // a 64-bit pointer). getOperandStr renders the memory operand with
+        // its own size prefix; lea ignores it but the assembler tolerates it.
+        writeILine("lea " + getOperandStr(leaInstruction->destination, Size::QWord) + ", " +
+                   getOperandStr(leaInstruction->source));
     }
 
     void IntelCodeEmission::emitNegation(const Instruction* instruction) {
@@ -301,6 +314,8 @@ namespace Fractal {
             return getRegister(operand, externalSize);
         case OperandType::Temp:
             return getTemp(operand, externalSize);
+        case OperandType::Indirect:
+            return getIndirect(operand, externalSize);
         default:
             return "";
         }
@@ -326,6 +341,16 @@ namespace Fractal {
         std::string sign = temp->stackOffest < 0 ? "+" : "-";
         return getSizeMemory((bool)externalSize ? externalSize : temp->size) + " [rbp " + sign +
                " " + std::to_string(abs(temp->stackOffest)) + "]";
+    }
+
+    // Render `[reg]` with the appropriate size prefix. The base register is
+    // always emitted at QWord width since pointers are 64-bit; the size
+    // prefix on the memory operand reflects how many bytes are read/written.
+    std::string IntelCodeEmission::getIndirect(OperandPtr operand, Size externalSize) {
+        auto* ind = static_cast<const IndirectOperand*>(operand.get());
+        Size sz = (bool)externalSize ? externalSize : ind->size;
+        auto baseReg = std::make_shared<RegisterOperand>(ind->baseReg, Size::QWord);
+        return getSizeMemory(sz) + " [" + getRegister(baseReg, Size::QWord) + "]";
     }
 
     std::string IntelCodeEmission::getComparisonType(ComparisonType type) {

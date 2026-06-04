@@ -110,3 +110,12 @@ TEST_CASE("e2e: while loop summing 1..10 returns 55") {
     if (!toolchainAvailable()) return;
     CHECK_EQ(compileAndRun("while_count"), 55);
 }
+
+// Regression for the AddressOf / Dereference codegen pair: `&a` produces
+// a pointer through `lea`, `@p` loads through it via an IndirectOperand.
+// Validates that the full pipeline (parse → analyze → codegen → emit →
+// nasm → gcc → run) handles pointer round-trips end-to-end.
+TEST_CASE("e2e: address-of + dereference round-trip returns 13") {
+    if (!toolchainAvailable()) return;
+    CHECK_EQ(compileAndRun("address_deref"), 13);
+}

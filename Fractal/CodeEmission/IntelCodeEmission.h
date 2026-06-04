@@ -22,6 +22,7 @@ namespace Fractal {
 		void emitFunctionPrologue(uint64_t stackAlloc);
 		void emitFunctionEpilogue();
 		void emitMove(const Instruction* instruction);
+		void emitLea(const Instruction* instruction);
 		void emitNegation(const Instruction* instruction);
 		void emitBitwiseNot(const Instruction* instruction);
 		void emitAdd(const Instruction* instruction);
@@ -39,6 +40,7 @@ namespace Fractal {
 
 		std::string getOperandStr(OperandPtr operand, Size externalSize = Size::None);
 		std::string getTemp(OperandPtr operand, Size externalSize);
+		std::string getIndirect(OperandPtr operand, Size externalSize);
 
 		// -- UTILITY --
 

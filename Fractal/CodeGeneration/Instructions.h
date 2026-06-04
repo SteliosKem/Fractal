@@ -14,6 +14,7 @@ namespace Fractal {
 		// Instructions
 		Instruction,
 		Move,
+		Lea,        // `lea reg, [rbp - X]` — load effective address of a stack slot
 		Return,
 		Negate,
 		BitwiseNot,
@@ -36,7 +37,8 @@ namespace Fractal {
 		Operand,
 		IntegerConstant,
 		Register,
-		Temp
+		Temp,
+		Indirect   // `[reg]` — memory through a pointer held in a register
 	};
 
 	enum class Register : uint8_t {
@@ -110,6 +112,21 @@ namespace Fractal {
 		Size size;
 	};
 
+	// Memory through a register: `SIZE [reg]`. Used to lower Dereference. The
+	// register must hold a pointer value at the time the instruction executes;
+	// the operand itself carries no liveness information.
+	class IndirectOperand : public Operand {
+	public:
+		IndirectOperand(Register baseReg, Size size) : baseReg{ baseReg }, size{ size } {}
+		virtual OperandType getType() const override { return OperandType::Indirect; }
+		void print() const override { std::cout << "[" << (int)baseReg << "]"; }
+		virtual Size getSize() const override { return size; }
+		virtual void setSize(Size _size) override { size = _size; }
+	public:
+		Register baseReg;
+		Size size;
+	};
+
 	class Instruction {
 	public:
 		virtual ~Instruction() = default;
@@ -160,6 +177,26 @@ namespace Fractal {
 		Size srcSize{ Size::None };
 		Size destSize{ Size::None };
 		bool signExtend{ false };
+	};
+
+	// `lea reg, mem`. The destination must be a register; the source must be a
+	// memory operand (TempOperand today; extend if/when other addressing modes
+	// appear). Result size is QWord — pointers are 64-bit on x86_64.
+	class LeaInstruction : public Instruction {
+	public:
+		LeaInstruction(OperandPtr source, OperandPtr destination)
+			: source{ source }, destination{ destination } {}
+		INSTR_TYPE(Lea)
+		virtual void print() const override {
+			std::cout << "Lea ";
+			if (source) source->print(); else std::cout << "<null>";
+			std::cout << ", ";
+			if (destination) destination->print(); else std::cout << "<null>";
+			std::cout << '\n';
+		}
+	public:
+		OperandPtr source;
+		OperandPtr destination;
 	};
 
 	class Label : public Instruction {

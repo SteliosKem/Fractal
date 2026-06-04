@@ -86,6 +86,8 @@ private:
 
     // -- Instruction factories ----------------------------------------------
     InstructionPtr move(OperandPtr source, OperandPtr destination);
+    InstructionPtr lea(OperandPtr source, OperandPtr destination);
+    OperandPtr indirect(Register baseReg, Size size);
     InstructionPtr negate(OperandPtr source);
     InstructionPtr bitwiseNot(OperandPtr source);
     InstructionPtr add(OperandPtr destination, OperandPtr other);

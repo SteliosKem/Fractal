@@ -535,14 +535,58 @@ namespace Fractal {
         m_result = temp;
     }
 
+    // `&ident` — produce a pointer to a local. We look up the variable's stack
+    // slot in m_localVarMap, `lea` its address into a scratch register, then
+    // store that pointer into a fresh QWord stack slot we return as the
+    // expression's value. Going through a stack slot (rather than returning
+    // the scratch register directly) keeps the result composable with the
+    // rest of the codegen, which expects to chain TempOperands.
     void CodeGenerator::visit(AddressOfExpression& node) {
-        (void)node;
-        notImplemented("AddressOfExpression", {});
+        auto* id = dynamic_cast<Identifier*>(node.expr.get());
+        if (!id) {
+            // SemanticAnalyzer also accepts MemberAccess as addressable, but
+            // until MemberAccess codegen lands there's nothing to lower.
+            notImplemented("AddressOf of a non-identifier target",
+                           node.expr ? Position{} : Position{});
+            return;
+        }
+
+        auto it = m_localVarMap.find(id->idToken.value);
+        if (it == m_localVarMap.end()) {
+            notImplemented("AddressOf of unknown identifier '" + id->idToken.value + "'",
+                           id->idToken.position);
+            return;
+        }
+
+        OperandPtr resultSlot =
+            std::make_shared<TempOperand>(allocateStack(Size::QWord), Size::QWord);
+        OperandPtr scratch = reg(Register::R10, Size::QWord);
+        emit(lea(it->second, scratch));   // lea r10, [rbp - X]
+        emit(move(scratch, resultSlot));  // mov [rbp - Y], r10
+        m_result = resultSlot;
     }
 
+    // `@ptr` — load through a pointer. We evaluate the inner expression (which
+    // must produce a pointer value), funnel it into a register so the indirect
+    // load has a base it can name, then read the pointed-to value into a fresh
+    // stack slot sized by the analyzer-determined result type.
     void CodeGenerator::visit(DereferenceExpression& node) {
-        (void)node;
-        notImplemented("DereferenceExpression", {});
+        OperandPtr pointerValue = generate(node.expr.get());
+        if (!pointerValue) return;
+
+        Size sz = resultSize(node);
+        OperandPtr resultSlot = std::make_shared<TempOperand>(allocateStack(sz), sz);
+
+        // R10 holds the pointer for the load; R11 is the load destination.
+        // Using two scratches avoids any mem-mem combination after legalize.
+        OperandPtr ptrReg  = reg(Register::R10, Size::QWord);
+        OperandPtr valReg  = reg(Register::R11, sz);
+        OperandPtr through = indirect(Register::R10, sz);
+
+        emit(move(pointerValue, ptrReg));  // mov r10, <pointer value>
+        emit(move(through, valReg));       // mov r11x, [r10]
+        emit(move(valReg, resultSlot));    // mov [rbp - Z], r11x
+        m_result = resultSlot;
     }
 
     // -- Instruction factories --------------------------------------------------
@@ -554,6 +598,14 @@ namespace Fractal {
         if (source)
             instr->srcSize = source->getSize();
         return instr;
+    }
+
+    InstructionPtr CodeGenerator::lea(OperandPtr source, OperandPtr destination) {
+        return std::make_unique<LeaInstruction>(source, destination);
+    }
+
+    OperandPtr CodeGenerator::indirect(Register baseReg, Size size) {
+        return std::make_shared<IndirectOperand>(baseReg, size);
     }
 
     InstructionPtr CodeGenerator::negate(OperandPtr source) {
