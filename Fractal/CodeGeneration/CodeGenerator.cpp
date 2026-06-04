@@ -480,8 +480,22 @@ namespace Fractal {
         // runtime pointer value held in the inner expression.
         if (auto* deref = dynamic_cast<DereferenceExpression*>(node.left.get())) {
             OperandPtr rhsValue = generate(node.right.get());
+            if (!rhsValue) return;
+
+            // If the rhs lives in a register (e.g. AX from a Call), evaluating
+            // the pointer expression next could clobber it (another Call, or
+            // an idiv which uses AX/DX as scratch). Spill to a stable stack
+            // slot so the value survives the LHS evaluation. TempOperand and
+            // IntegerConstant don't move on us, so we only spill registers.
+            if (rhsValue->getType() == OperandType::Register) {
+                Size sz = rhsValue->getSize();
+                auto spill = std::make_shared<TempOperand>(allocateStack(sz), sz);
+                emit(move(rhsValue, spill));
+                rhsValue = spill;
+            }
+
             OperandPtr ptrValue = generate(deref->expr.get());
-            if (!rhsValue || !ptrValue) return;
+            if (!ptrValue) return;
 
             Size sz = resultSize(*deref);
             OperandPtr ptrReg  = reg(Register::R10, Size::QWord);

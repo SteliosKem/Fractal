@@ -128,3 +128,21 @@ TEST_CASE("e2e: store through pointer updates original variable") {
     if (!toolchainAvailable()) return;
     CHECK_EQ(compileAndRun("assign_through_pointer"), 42);
 }
+
+// Storing through an i64 pointer with an i32 rhs. The analyzer's tryCast
+// should insert a widening CastExpression so the rhs reaches the deref-store
+// path already promoted to i64 — exercising that the codegen's resultSize()
+// driven indirect-store handles QWord stores correctly.
+TEST_CASE("e2e: store i32 through (i64) pointer widens correctly") {
+    if (!toolchainAvailable()) return;
+    CHECK_EQ(compileAndRun("assign_through_pointer_widen"), 7);
+}
+
+// Nested deref-assign: `@@pp = X` should walk the inner Dereference as an
+// rvalue (loading the inner pointer) and then store through the resulting
+// address. The semantic chain is the same as `*p = X`, just one level
+// deeper through pp.
+TEST_CASE("e2e: nested deref-assign @@pp = 99 mutates the leaf") {
+    if (!toolchainAvailable()) return;
+    CHECK_EQ(compileAndRun("assign_through_nested_pointer"), 99);
+}

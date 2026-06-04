@@ -1,0 +1,10 @@
+<define>
+
+fn main(): i64 {
+    let a: i64 = 0;
+    let p: (i64) = &a;
+    @p = 7;
+    return a;
+}
+
+<!define>

@@ -1,0 +1,11 @@
+<define>
+
+fn main(): i32 {
+    let a: i32 = 0;
+    let p: (i32) = &a;
+    let pp: ((i32)) = &p;
+    @@pp = 99;
+    return a;
+}
+
+<!define>
