@@ -1,0 +1,10 @@
+<define>
+
+fn main(): i32 {
+    let a: i32 = 5;
+    let p: (i32) = &a;
+    @p = 42;
+    return a;
+}
+
+<!define>

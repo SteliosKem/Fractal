@@ -7,8 +7,8 @@ Program execution starts from the first statement outside of the definitions hea
 fn main(): i32 {
     let a: i32 = 5;
     let b: (i32) = &a;
-    // let c: i32 = @b + 2;
-    return @b;
+    @b = 12;
+    return a;
 }
 
 <!define>

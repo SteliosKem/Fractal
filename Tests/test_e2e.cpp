@@ -119,3 +119,12 @@ TEST_CASE("e2e: address-of + dereference round-trip returns 13") {
     if (!toolchainAvailable()) return;
     CHECK_EQ(compileAndRun("address_deref"), 13);
 }
+
+// Regression for the `@p = rhs` store path. Verifies that the store goes
+// through the pointer to the pointed-to memory (mutating `a`), not into a
+// local copy. If the codegen accidentally treated `@p` as an rvalue location
+// the test would return 5 instead of 42.
+TEST_CASE("e2e: store through pointer updates original variable") {
+    if (!toolchainAvailable()) return;
+    CHECK_EQ(compileAndRun("assign_through_pointer"), 42);
+}

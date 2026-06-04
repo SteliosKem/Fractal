@@ -474,6 +474,28 @@ namespace Fractal {
     }
 
     void CodeGenerator::visit(Assignment& node) {
+        // `@ptr = rhs` — store through the pointer. The default lvalue path
+        // ("compute the lvalue's storage, then mov into it") doesn't apply
+        // because the storage isn't a fixed stack slot — it's named by a
+        // runtime pointer value held in the inner expression.
+        if (auto* deref = dynamic_cast<DereferenceExpression*>(node.left.get())) {
+            OperandPtr rhsValue = generate(node.right.get());
+            OperandPtr ptrValue = generate(deref->expr.get());
+            if (!rhsValue || !ptrValue) return;
+
+            Size sz = resultSize(*deref);
+            OperandPtr ptrReg  = reg(Register::R10, Size::QWord);
+            OperandPtr valReg  = reg(Register::R11, sz);
+            OperandPtr through = indirect(Register::R10, sz);
+
+            emit(move(ptrValue, ptrReg));   // mov r10, <pointer>
+            emit(move(rhsValue, valReg));   // mov r11x, <rhs>
+            emit(move(valReg, through));    // mov [r10], r11x
+            m_result = rhsValue;            // value of an assignment is the rhs
+            return;
+        }
+
+        // Default lvalue path (Identifier / Call / MemberAccess).
         OperandPtr temp = generate(node.right.get());
         OperandPtr var = generate(node.left.get());
         if (temp && var)

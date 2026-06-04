@@ -16,7 +16,8 @@ namespace Fractal {
 static bool isLvalue(Expression* e) {
     return dynamic_cast<Identifier*>(e)
         || dynamic_cast<Call*>(e)
-        || dynamic_cast<MemberAccess*>(e);
+        || dynamic_cast<MemberAccess*>(e)
+        || dynamic_cast<DereferenceExpression*>(e);
 }
 
 static bool isAddressable(Expression* e) {
