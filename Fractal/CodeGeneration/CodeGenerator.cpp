@@ -35,6 +35,14 @@ namespace Fractal {
         }
     }
 
+    // Returns the byte-size of an expression's value as the SemanticAnalyzer
+    // determined it. Falls back to DWord if the expression has no resolved
+    // type, which only happens before the analyzer has run (e.g. when codegen
+    // is invoked on partial AST in tests).
+    static Size resultSize(const Expression& e) {
+        return e.expressionType ? getTypeSize(e.expressionType) : Size::DWord;
+    }
+
     static ComparisonType getComparisonType(TokenType tokType) {
         switch (tokType) {
         case EQUAL_EQUAL:
@@ -68,6 +76,12 @@ namespace Fractal {
             definition->accept(*this);
         }
 
+        // Two-pass legalization: validateMove may insert `movsx` shimmed by an
+        // extra `mov` that itself violates size-match rules. The second pass
+        // resolves the inserted instructions. This is fragile (a future shim
+        // requiring three passes would silently break) and the right fix is
+        // to make the move factory emit legal instructions directly, or to
+        // run a proper fixed-point legalization. Tracked as a TODO.
         validateInstructions(&m_instructions);
         validateInstructions(&m_instructions);
 
@@ -75,6 +89,32 @@ namespace Fractal {
     }
 
     // -- Generate helper --------------------------------------------------------
+
+    // RAII guard that redirects emit() to a new InstructionList for the
+    // lifetime of the guard, then restores the previous target. Used so
+    // visit(FunctionDefinition&) (and any future nested-emission visitor)
+    // can't forget to put m_currentList back even on early return / exception.
+    struct ScopedEmitTarget {
+        CodeGenerator& gen;
+        InstructionList* previous;
+        ScopedEmitTarget(CodeGenerator& g, InstructionList* newList)
+            : gen{g}, previous{g.m_currentList} {
+            g.m_currentList = newList;
+        }
+        ScopedEmitTarget(const ScopedEmitTarget&) = delete;
+        ScopedEmitTarget& operator=(const ScopedEmitTarget&) = delete;
+        ~ScopedEmitTarget() { gen.m_currentList = previous; }
+    };
+
+    // Reports an "unimplemented codegen for X" error and clears m_result.
+    // Used as the body of every visit() that doesn't lower yet, so a missing
+    // feature surfaces as a hard error instead of silently corrupting output.
+    void CodeGenerator::notImplemented(const std::string& nodeName, const Position& pos) {
+        if (m_errorHandler)
+            m_errorHandler->reportError(
+                {"Code generation for '" + nodeName + "' is not implemented yet", pos});
+        m_result = nullptr;
+    }
 
     OperandPtr CodeGenerator::generate(Expression* expression) {
         if (!expression)
@@ -107,8 +147,12 @@ namespace Fractal {
         bool addToStack = node.parameterList.size() > argumentRegisters.size();
         size_t inRegs = addToStack ? argumentRegisters.size() : node.parameterList.size();
 
-        InstructionList* prev = m_currentList;
-        m_currentList = &funcInstr->instructions;
+        // Redirect emit() to write into the function's own instruction list
+        // for the scoped block below; ScopedEmitTarget restores m_currentList
+        // when the block exits. This keeps the rest of the function readable
+        // without leaking the redirect into the final emit(std::move(funcInstr)).
+        {
+        ScopedEmitTarget _target{*this, &funcInstr->instructions};
 
         for (size_t i = 0; i < inRegs; i++) {
             Size paramSize = getTypeSize(node.parameterList[i]->type);
@@ -135,8 +179,9 @@ namespace Fractal {
         // Implicit `return 0` if control flow falls off the end.
         emit(move(intConst(0), reg(Register::AX, Size::DWord)));
         emit(std::make_unique<ReturnInstruction>());
+        } // ScopedEmitTarget destructor restores m_currentList to the outer list
 
-        m_currentList = prev;
+        // Now emit the assembled function instruction into the program's list.
         emit(std::move(funcInstr));
 
         // Restore local variable map
@@ -183,8 +228,12 @@ namespace Fractal {
 
     void CodeGenerator::visit(ReturnStatement& node) {
         OperandPtr result = generate(node.expression.get());
-        if (result)
-            emit(move(result, reg(Register::AX)));
+        if (result) {
+            // Use the expression's own type rather than a hardcoded DWord so
+            // i64/pointer returns end up in RAX, not just EAX.
+            Size sz = node.expression ? resultSize(*node.expression) : Size::DWord;
+            emit(move(result, reg(Register::AX, sz)));
+        }
         emit(std::make_unique<ReturnInstruction>());
     }
 
@@ -266,23 +315,20 @@ namespace Fractal {
     }
 
     void CodeGenerator::visit(FloatLiteral& node) {
-        (void)node;
-        m_result = nullptr; // float codegen not yet implemented
+        notImplemented("FloatLiteral", node.position);
     }
 
     void CodeGenerator::visit(StringLiteral& node) {
-        (void)node;
-        m_result = nullptr; // string codegen not yet implemented
+        notImplemented("StringLiteral", node.position);
     }
 
     void CodeGenerator::visit(CharacterLiteral& node) {
-        (void)node;
-        m_result = nullptr; // char codegen not yet implemented
+        notImplemented("CharacterLiteral", node.position);
     }
 
     void CodeGenerator::visit(ArrayList& node) {
         (void)node;
-        m_result = nullptr; // array codegen not yet implemented
+        notImplemented("ArrayList", {});
     }
 
     void CodeGenerator::visit(Identifier& node) {
@@ -292,7 +338,8 @@ namespace Fractal {
     // -- Expressions: composites ------------------------------------------------
 
     void CodeGenerator::visit(UnaryOperation& node) {
-        auto destination = std::make_shared<TempOperand>(allocateStack(Size::DWord), Size::DWord);
+        Size sz = resultSize(node);
+        auto destination = std::make_shared<TempOperand>(allocateStack(sz), sz);
         OperandPtr inner = generate(node.expression.get());
         if (inner)
             emit(move(inner, destination));
@@ -334,13 +381,16 @@ namespace Fractal {
             m_result = logical(node);
             return;
         default:
-            m_result = nullptr;
+            notImplemented(
+                "BinaryOperation '" + node.operatorToken.value + "'",
+                node.operatorToken.position);
             return;
         }
     }
 
     OperandPtr CodeGenerator::arithmetic(BinaryOperation& node) {
-        auto destination = std::make_shared<TempOperand>(allocateStack(Size::DWord), Size::DWord);
+        Size sz = resultSize(node);
+        auto destination = std::make_shared<TempOperand>(allocateStack(sz), sz);
         OperandPtr leftOp = generate(node.left.get());
         if (leftOp)
             emit(move(leftOp, destination));
@@ -410,16 +460,17 @@ namespace Fractal {
     }
 
     OperandPtr CodeGenerator::idiv(BinaryOperation& node) {
+        Size sz = resultSize(node);
         OperandPtr rightOp = generate(node.right.get());
-        auto temp = std::make_shared<TempOperand>(allocateStack(Size::DWord), Size::DWord);
+        auto temp = std::make_shared<TempOperand>(allocateStack(sz), sz);
         if (rightOp)
             emit(move(rightOp, temp));
         OperandPtr leftOp = generate(node.left.get());
         if (leftOp)
-            emit(move(leftOp, reg(Register::AX)));
+            emit(move(leftOp, reg(Register::AX, sz)));
         emit(std::make_unique<CdqInstruction>());
         emit(std::make_unique<DivInstruction>(temp));
-        return reg(Register::AX);
+        return reg(Register::AX, sz);
     }
 
     void CodeGenerator::visit(Assignment& node) {
@@ -470,8 +521,7 @@ namespace Fractal {
     }
 
     void CodeGenerator::visit(MemberAccess& node) {
-        (void)node;
-        m_result = nullptr; // member-access codegen not yet implemented
+        notImplemented("MemberAccess", node.operatorToken.position);
     }
 
     void CodeGenerator::visit(CastExpression& node) {
@@ -485,14 +535,14 @@ namespace Fractal {
         m_result = temp;
     }
 
-    void CodeGenerator::visit(DereferenceExpression& node) {
-        (void)node;
-        m_result = nullptr; // dereference codegen not yet implemented
-    }
-
     void CodeGenerator::visit(AddressOfExpression& node) {
         (void)node;
-        m_result = nullptr; // address-of codegen not yet implemented
+        notImplemented("AddressOfExpression", {});
+    }
+
+    void CodeGenerator::visit(DereferenceExpression& node) {
+        (void)node;
+        notImplemented("DereferenceExpression", {});
     }
 
     // -- Instruction factories --------------------------------------------------

@@ -70,6 +70,11 @@ private:
     // unique_ptr; passing nullptr is allowed.
     OperandPtr generate(Expression* expression);
 
+    // Reports an "unimplemented codegen for X" error and resets m_result. Used
+    // by every visit() that hasn't been lowered yet, so unsupported language
+    // features fail loudly instead of silently producing broken assembly.
+    void notImplemented(const std::string& nodeName, const Position& pos);
+
     // Emit a single instruction into the active target list.
     void emit(InstructionPtr instr) { m_currentList->push_back(std::move(instr)); }
 
@@ -141,6 +146,10 @@ private:
     OperandPtr m_result{};
 
     ErrorHandler* m_errorHandler{ nullptr };
+
+    // ScopedEmitTarget (defined in the .cpp) saves/restores m_currentList
+    // around a nested emission so visit methods can't leak target state.
+    friend struct ScopedEmitTarget;
 };
 
 } // namespace Fractal

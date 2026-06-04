@@ -5,6 +5,12 @@
 #include "IntelCodeEmission.h"
 
 namespace Fractal {
+    // Single source of truth for platform-specific name mangling. Mach-O (Mac)
+    // expects leading underscores on every C symbol; PE/ELF (Win/Linux) does not.
+    std::string IntelCodeEmission::mangle(const std::string& name) const {
+        return m_platform == Platform::Mac ? "_" + name : name;
+    }
+
     const std::string& IntelCodeEmission::emit(const InstructionList* instructions,
                                                const std::vector<std::string>* externals,
                                                Platform platform) {
@@ -15,7 +21,7 @@ namespace Fractal {
         if (!externals->empty()) {
             std::string writeExt = "extern ";
             for (auto& str : *externals)
-                writeExt += str + ", ";
+                writeExt += mangle(str) + ", ";
 
             writeLine(writeExt);
         }
@@ -106,13 +112,9 @@ namespace Fractal {
     void IntelCodeEmission::emitFunctionDefinition(const Instruction* instruction) {
         auto* functionDefinition = static_cast<const FunctionDefInstruction*>(instruction);
 
-        if (m_platform == Platform::Mac) {
-            writeLine("global _" + functionDefinition->name);
-            label("_" + functionDefinition->name);
-        } else if (m_platform == Platform::Win) {
-            writeLine("global " + functionDefinition->name);
-            label(functionDefinition->name);
-        }
+        const std::string sym = mangle(functionDefinition->name);
+        writeLine("global " + sym);
+        label(sym);
 
         emitFunctionPrologue(functionDefinition->stackAlloc);
 
@@ -210,12 +212,7 @@ namespace Fractal {
 
     void IntelCodeEmission::emitCall(const Instruction* instruction) {
         auto* call = static_cast<const CallInstruction*>(instruction);
-
-        if (m_platform == Platform::Mac) {
-            writeILine("call _" + call->func);
-        } else if (m_platform == Platform::Win) {
-            writeILine("call " + call->func);
-        }
+        writeILine("call " + mangle(call->func));
     }
 
     void IntelCodeEmission::emitPush(const Instruction* instruction) {

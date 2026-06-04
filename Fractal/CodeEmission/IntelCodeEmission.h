@@ -42,6 +42,11 @@ namespace Fractal {
 
 		// -- UTILITY --
 
+		// Apply platform-specific symbol mangling. The only public-facing
+		// convention difference between PE/ELF and Mach-O is the leading
+		// underscore on every C symbol on Mac.
+		std::string mangle(const std::string& name) const;
+
 		void write(const std::string& text);
 		void writeLine(const std::string& line);
 		std::string getComparisonType(ComparisonType type);
