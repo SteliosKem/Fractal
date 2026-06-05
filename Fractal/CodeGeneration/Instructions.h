@@ -15,6 +15,7 @@ namespace Fractal {
 		Instruction,
 		Move,
 		Lea,        // `lea reg, [rbp - X]` — load effective address of a stack slot
+		LeaLabel,   // `lea reg, [rel <label>]` — load effective address of a labeled symbol
 		Return,
 		Negate,
 		BitwiseNot,
@@ -196,6 +197,21 @@ namespace Fractal {
 		}
 	public:
 		OperandPtr source;
+		OperandPtr destination;
+	};
+
+	class LeaLabelInstruction : public Instruction {
+	public:
+		LeaLabelInstruction(std::string label, OperandPtr destination)
+			: label{ label }, destination{ destination } {}
+		INSTR_TYPE(LeaLabel)
+		virtual void print() const override {
+			std::cout << "Lea label " << label << ", ";
+			if (destination) destination->print(); else std::cout << "<null>";
+			std::cout << '\n';
+		}
+	public:
+		std::string label;
 		OperandPtr destination;
 	};
 

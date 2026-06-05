@@ -5,6 +5,42 @@
 #include "IntelCodeEmission.h"
 
 namespace Fractal {
+    // Renders a byte string as a NASM `db` operand list: printable ASCII goes
+    // into quoted chunks, everything else (newlines, quotes, NULs, high bytes)
+    // becomes a comma-separated decimal byte. Example:
+    //     "Hello\nWorld!\0"  ->  "Hello", 10, "World!", 0
+    // NASM tolerates back-to-back chunks separated by commas, and any byte not
+    // legal inside quotes (a quote itself, control chars, the null terminator)
+    // must be numeric. Always emits at least one byte so callers don't have
+    // to special-case the empty string.
+    static std::string nasmDbLiteral(const std::string& bytes) {
+        std::string out;
+        bool inQuotes = false;
+        auto closeQuotes = [&]() {
+            if (inQuotes) { out += '"'; inQuotes = false; }
+        };
+        auto separator = [&]() {
+            if (!out.empty()) out += ", ";
+        };
+        for (unsigned char c : bytes) {
+            bool printable = c >= 0x20 && c <= 0x7e && c != '"';
+            if (printable) {
+                if (!inQuotes) {
+                    separator();
+                    out += '"';
+                    inQuotes = true;
+                }
+                out += static_cast<char>(c);
+            } else {
+                closeQuotes();
+                separator();
+                out += std::to_string(static_cast<unsigned>(c));
+            }
+        }
+        closeQuotes();
+        return out.empty() ? "0" : out;
+    }
+
     // Single source of truth for platform-specific name mangling. Mach-O (Mac)
     // expects leading underscores on every C symbol; PE/ELF (Win/Linux) does not.
     std::string IntelCodeEmission::mangle(const std::string& name) const {
@@ -12,15 +48,16 @@ namespace Fractal {
     }
 
     const std::string& IntelCodeEmission::emit(const InstructionList* instructions,
-                                               const std::vector<std::string>* externals,
+                                               const CodeGenObjects& codeGenObjects,
                                                Platform platform) {
         m_platform = platform;
         m_instructions = instructions;
-        m_externals = externals;
+        m_externals = codeGenObjects.externals;
+        m_stringMap = codeGenObjects.strings;
 
-        if (!externals->empty()) {
+        if (!m_externals->empty()) {
             std::string writeExt = "extern ";
-            for (auto& str : *externals)
+            for (const auto& str : *m_externals)
                 writeExt += mangle(str) + ", ";
 
             writeLine(writeExt);
@@ -30,6 +67,19 @@ namespace Fractal {
 
         for (const auto& instruction : *instructions)
             emitInstruction(instruction.get());
+
+        writeLine("section .data");
+
+        // m_stringMap is keyed by the string's literal contents; the value
+        // is the unique label the codegen assigned. Each entry becomes:
+        //     <label>: db <nasm-escaped bytes>, 0
+        // The trailing NUL is appended so C-style consumers (printf, etc.)
+        // can treat the address as a normal null-terminated string.
+        for (const auto& [content, label] : *m_stringMap) {
+            std::string payload = content;
+            payload.push_back('\0');
+            writeLine(label + ": db " + nasmDbLiteral(payload));
+        }
 
         return m_output;
     }
@@ -63,6 +113,9 @@ namespace Fractal {
             return;
         case InstructionType::Lea:
             emitLea(instruction);
+            return;
+        case InstructionType::LeaLabel:
+            emitLeaLabel(instruction);
             return;
         case InstructionType::Negate:
             emitNegation(instruction);
@@ -152,6 +205,13 @@ namespace Fractal {
         // its own size prefix; lea ignores it but the assembler tolerates it.
         writeILine("lea " + getOperandStr(leaInstruction->destination, Size::QWord) + ", " +
                    getOperandStr(leaInstruction->source));
+    }
+
+    void IntelCodeEmission::emitLeaLabel(const Instruction* instruction) {
+        auto* leaLabelInstruction = static_cast<const LeaLabelInstruction*>(instruction);
+
+        writeILine("lea " + getOperandStr(leaLabelInstruction->destination, Size::QWord) + ", " +
+                   "[rel " + leaLabelInstruction->label + "]");
     }
 
     void IntelCodeEmission::emitNegation(const Instruction* instruction) {

@@ -21,6 +21,7 @@ namespace Fractal {
             case BasicType::I64:
             case BasicType::U64:
             case BasicType::F64:
+            case BasicType::String:    // a pointer into .rodata — 8 bytes
                 return Size::QWord;
             default:
                 return Size::DWord;
@@ -319,7 +320,12 @@ namespace Fractal {
     }
 
     void CodeGenerator::visit(StringLiteral& node) {
-        notImplemented("StringLiteral", node.position);
+        std::string label = internString(node.value);
+        OperandPtr slot = std::make_shared<TempOperand>(allocateStack(Size::QWord), Size::QWord);
+        OperandPtr scratch = reg(Register::R10, Size::QWord);
+        emit(std::make_unique<LeaLabelInstruction>(label, scratch));
+        emit(move(scratch, slot));
+        m_result = slot;
     }
 
     void CodeGenerator::visit(CharacterLiteral& node) {
@@ -473,6 +479,16 @@ namespace Fractal {
         return reg(Register::AX, sz);
     }
 
+    std::string CodeGenerator::internString(const std::string& str) {
+        auto it = m_strings.find(str);
+        if (it != m_strings.end()) {
+            return it->second;
+        }
+        std::string label = "Lstr." + std::to_string(m_strings.size());
+        m_strings[str] = label;
+        return label;
+    }
+
     void CodeGenerator::visit(Assignment& node) {
         // `@ptr = rhs` — store through the pointer. The default lvalue path
         // ("compute the lvalue's storage, then mov into it") doesn't apply
@@ -535,8 +551,12 @@ namespace Fractal {
 
         for (size_t i = 0; i < inRegs; i++) {
             OperandPtr argOp = generate(node.argumentList[i]->expression.get());
-            if (argOp)
-                emit(move(argOp, reg(argumentRegisters[i], Size::DWord)));
+            if (!argOp) continue;
+            // Size the destination register to the argument's value, not a
+            // hardcoded DWord — otherwise i64 / pointer / string arguments
+            // get truncated to 32 bits and the callee receives garbage.
+            Size argSz = argOp->getSize();
+            emit(move(argOp, reg(argumentRegisters[i], argSz)));
         }
 
         uint32_t stackArgs = 0;

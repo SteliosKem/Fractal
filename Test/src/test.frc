@@ -4,8 +4,15 @@ Program execution starts from the first statement outside of the definitions hea
 
 <define>
 
+@external
+fn printf(fmt: str): i32;
+
 fn main(): i32 {
-    let a: str = "Hello\nWorld!";
+    let b: str = "Hello\t world?";
+    let c: i32 = 2;
+    if c == 1 => printf(b);
+    else
+        printf("Nahh");
 }
 
 <!define>

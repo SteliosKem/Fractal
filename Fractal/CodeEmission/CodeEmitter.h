@@ -18,7 +18,7 @@ public:
     // given platform. The returned string is owned by the emitter and remains
     // valid until the next call to emit().
     virtual const std::string &emit(const InstructionList *instructions,
-                                    const std::vector<std::string> *externals,
+                                    const CodeGenObjects& codeGenObjects,
                                     Platform platform) = 0;
 
     // The most recently emitted output. Useful when callers need to write it

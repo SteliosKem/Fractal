@@ -129,7 +129,7 @@ static bool compilePipeline(const std::filesystem::path &sourceFile,
     }
 
     std::string asmOutput = emitter.emit(&codeGenerator.instructions(),
-                                         codeGenerator.externals(), platform);
+                                         codeGenerator.genObjects(), platform);
     if (options.verbose) std::cout << asmOutput;
 
     std::filesystem::create_directories(outDir);

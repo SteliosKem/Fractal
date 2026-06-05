@@ -13,7 +13,7 @@ namespace Fractal {
 	public:
 		IntelCodeEmission() = default;
 
-		const std::string& emit(const InstructionList* instructions, const std::vector<std::string>* externals, Platform platform) override;
+		const std::string& emit(const InstructionList* instructions, const CodeGenObjects& codeGenObjects, Platform platform) override;
 		const std::string& output() const override;
 	private:
 		// -- FROM INSTRUCTION LIST --
@@ -23,6 +23,7 @@ namespace Fractal {
 		void emitFunctionEpilogue();
 		void emitMove(const Instruction* instruction);
 		void emitLea(const Instruction* instruction);
+		void emitLeaLabel(const Instruction* instruction);
 		void emitNegation(const Instruction* instruction);
 		void emitBitwiseNot(const Instruction* instruction);
 		void emitAdd(const Instruction* instruction);
@@ -62,6 +63,7 @@ namespace Fractal {
 		const InstructionList* m_instructions;
 		Platform m_platform;
 		const std::vector<std::string>* m_externals;
+		const std::unordered_map<std::string, std::string>* m_stringMap;
 		std::string m_output;
 	};
 }

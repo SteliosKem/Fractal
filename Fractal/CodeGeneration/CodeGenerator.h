@@ -22,13 +22,18 @@ enum class Platform {
     Mac
 };
 
+struct CodeGenObjects {
+    const std::vector<std::string>* externals{};
+    const std::unordered_map<std::string, std::string>* strings{};
+};
+
 class CodeGenerator : public ExpressionVisitor, public StatementVisitor {
 public:
     CodeGenerator(ErrorHandler* errorHandler) : m_errorHandler{ errorHandler } {}
 
     const InstructionList& generate(const ProgramFile& program, Platform platform);
     const InstructionList& instructions() const { return m_instructions; }
-    const std::vector<std::string>* externals() const { return &m_externals; }
+    const CodeGenObjects genObjects() const { return CodeGenObjects(&m_externals, &m_strings); }
 
     // ExpressionVisitor
     void visit(IntegerLiteral& node) override;
@@ -83,6 +88,8 @@ private:
     OperandPtr relational(BinaryOperation& node);
     OperandPtr logical(BinaryOperation& node);
     OperandPtr idiv(BinaryOperation& node);
+
+    std::string internString(const std::string& str);
 
     // -- Instruction factories ----------------------------------------------
     InstructionPtr move(OperandPtr source, OperandPtr destination);
@@ -141,6 +148,7 @@ private:
     std::vector<LoopInfo> m_loopStack{};
     Platform m_platform{};
     std::vector<std::string> m_externals{};
+    std::unordered_map<std::string, std::string> m_strings{};
 
     // Visitor scratch state. m_currentList is the InstructionList that
     // emit() pushes into; m_result is set by Expression visit() methods.
@@ -153,5 +161,6 @@ private:
     // around a nested emission so visit methods can't leak target state.
     friend struct ScopedEmitTarget;
 };
+
 
 } // namespace Fractal
