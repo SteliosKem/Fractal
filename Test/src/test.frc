@@ -7,17 +7,17 @@ Program execution starts from the first statement outside of the definitions hea
 @external
 fn printf(fmt: str): i32;
 
-fn m(a: i32);
+fn m(a: (str)): str {
+    return @a;
+}
 
 fn main(): i32 {
     let b = "Hiii";
-    let c: i32 = 2;
-    let k = 2;
-    let p: i32 = k;
-    if c == 1 => printf(b);
+    let c: i32 = 1;
+    let p = m(&b);
+    if c == 1 => printf(p);
     else
         printf("Nahh");
-    m(k);
 }
 
 <!define>

@@ -573,7 +573,10 @@ namespace Fractal {
         emit(call(node.funcToken.value));
         emit(add(reg(Register::SP, Size::QWord), intConst(8 * stackArgs + stackPadding)));
 
-        m_result = reg(Register::AX, Size::DWord);
+        // Size the return-value register to the call's result type. Hardcoding
+        // DWord truncates 64-bit returns (pointers, i64, str) because the
+        // surrounding move legalization then sign-extends eax into rax.
+        m_result = reg(Register::AX, resultSize(node));
     }
 
     void CodeGenerator::visit(MemberAccess& node) {
