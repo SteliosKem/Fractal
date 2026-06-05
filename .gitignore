@@ -23,6 +23,9 @@ out/
 
 assets/
 
+.vscode/
+.postman/
+
 # Compiled Fractal artifacts
 Test/build/intermediate/
 
