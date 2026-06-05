@@ -483,6 +483,22 @@ void SemanticAnalyzer::visit(FunctionDefinition& node) {
 }
 
 void SemanticAnalyzer::visit(VariableDefinition& node) {
+    if (node.initializer) {
+        analyze(node.initializer);
+        if (!m_ok) return;
+
+        else if (node.variableType->typeInfo() == TypeInfo::Fundamental
+            && std::static_pointer_cast<const FundamentalType>(node.variableType)->type
+                   == BasicType::None) {
+            node.variableType = node.initializer->expressionType;
+        } else if (!tryCast(&node.initializer, node.variableType)) {
+            m_errorHandler->reportError(
+                {"Initializer Expression does not match the variable's type",
+                 node.nameToken.position});
+            m_ok = false;
+        }
+    }
+    
     if (node.isGlobal) {
         if (findNameGlobal(node.nameToken)) {
             m_errorHandler->reportError(
@@ -503,22 +519,6 @@ void SemanticAnalyzer::visit(VariableDefinition& node) {
         }
         topScope()[node.nameToken.value] =
             SymbolEntry{node.nameToken.value, node.variableType};
-    }
-
-    if (node.initializer) {
-        analyze(node.initializer);
-        if (!m_ok) return;
-
-        if (node.variableType->typeInfo() == TypeInfo::Fundamental
-            && std::static_pointer_cast<const FundamentalType>(node.variableType)->type
-                   == BasicType::None) {
-            node.variableType = node.initializer->expressionType;
-        } else if (!tryCast(&node.initializer, node.variableType)) {
-            m_errorHandler->reportError(
-                {"Initializer Expression does not match the variable's type",
-                 node.nameToken.position});
-            m_ok = false;
-        }
     }
 }
 
